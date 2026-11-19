@@ -2,8 +2,8 @@
 
 # dsh-movie-workbench
 
-A DeepSeek Harness plugin that adds a **影视工作台 / Movies workbench** panel to the left sidebar:
-search movies and TV series across **TMDB**, **IMDb** and **豆瓣** on a single page, and find BT
+A DeepSeek Harness plugin that adds a **Movies workbench** panel to the left sidebar:
+search movies and TV series across **TMDB**, **IMDb** and **DouBan** on a single page, and find BT
 resources.
 
 ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png)
@@ -55,11 +55,11 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /status` | whether each channel has credentials |
 | `GET /search?q=&source=&lang=` | dispatch to the selected channels and return normalized results |
 | `GET /trending?source=&lang=&limit=` | recommendation rows, or a longer list for one channel |
-| `GET /detail?source=douban&id=` | synopsis and metadata for a 豆瓣 title |
+| `GET /detail?source=douban&id=` | synopsis and metadata for a DouBan title |
 | `GET /torrents?q=&alt=&source=&limit=` | BT resource search |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
 
-All upstream HTTP requests happen in the Host, so the page stays same-origin and 豆瓣's `Referer`
+All upstream HTTP requests happen in the Host, so the page stays same-origin and DouBan's `Referer`
 requirement is handled server-side.
 
 ## Configuration
@@ -73,14 +73,14 @@ Plugin configuration in `cordis.patch.yml`:
 | `requestTimeoutMs` | `8000` | timeout for a single upstream request |
 
 TMDB needs a credential: set `tmdbApiKey`, or paste a v3 key / v4 token into the Key control in the
-panel (stored only in the local browser). IMDb and 豆瓣 need no key.
+panel (stored only in the local browser). IMDb and DouBan need no key.
 
 ## Notes
 
 - Requires the DSH Web GUI (it provides `ctx.webServer`) and access to `api.themoviedb.org`,
   `v2.sg.media-imdb.com`, `movie.douban.com`, `bt4gprx.com`, `bitsearch.to` and the poster image
   hosts.
-- IMDb search results carry no rating; 豆瓣 recommendations include the public `rate`; TMDB
+- IMDb search results carry no rating; DouBan recommendations include the public `rate`; TMDB
   provides ratings and vote counts.
 - suggestion, rexxar, BT4G and BitSearch are undocumented endpoints and may change or rate-limit;
   failures are surfaced per channel and do not affect the others.

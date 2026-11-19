@@ -2,7 +2,7 @@
 
 # dsh-movie-workbench
 
-一个 DeepSeek Harness 插件，在左侧栏加入 **影视工作台 / Movies workbench** 面板：
+一个 DeepSeek Harness 插件，在左侧栏加入 **影视工作台** 面板：
 在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，并查找 BT 资源。
 
 ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png)
