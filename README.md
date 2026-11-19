@@ -21,10 +21,25 @@ place, browse per-channel recommendations, open a detail page and find BT resour
 - **Recent searches and cancel-search** — recent chips under the search field; the
   clear control (or `Esc`) aborts a search and returns to recommendations.
 
-## Enable
+## Install
 
-Add the bundle to a DSH profile. It registers the 影视工作台 sidebar entry and one Host
-route, `/movie-workbench/api`. No build step, no dependencies, no session required.
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/aidc-lab/dsh-movie-workbench.git
+   ```
+
+2. In DSH open **Plugins**, choose **Add plugin**, and select the cloned directory (the
+   folder that contains `package.json`).
+
+3. Make sure the `dsh-movie-workbench` bundle is enabled. Restart DSH only if the
+   installation reports that a restart is required; the 影视工作台 entry then appears in
+   the left sidebar.
+
+The bundle is plain JavaScript: no build step, no dependencies to install, and no session
+is required. Its Host half registers one route, `/movie-workbench/api`.
+
+After pulling a newer version, restart DSH so the Host loads the updated code.
 
 ## Data-source settings
 

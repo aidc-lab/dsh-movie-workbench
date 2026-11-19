@@ -18,10 +18,24 @@
 - **最近搜索与取消搜索** — 搜索框下方显示最近记录；清除按钮（或 `Esc`）取消搜索并
   回到推荐。
 
-## 启用
+## 安装
 
-将插件加入 DSH profile 即可。它会注册「影视工作台」侧栏入口和一个 Host 路由
-`/movie-workbench/api`。无需构建、无额外依赖、无需会话。
+1. 克隆仓库：
+
+   ```bash
+   git clone https://github.com/aidc-lab/dsh-movie-workbench.git
+   ```
+
+2. 在 DSH 中打开「插件」，点「添加插件」，选择克隆下来的目录（含 `package.json` 的
+   那一层）。
+
+3. 确认 `dsh-movie-workbench` 插件已启用；只有安装结果提示需要重启时才重启 DSH。之后
+   左侧栏会出现「影视工作台」入口。
+
+插件是纯 JavaScript：无需构建、无需安装依赖、也无需会话。Host 端只注册一个路由
+`/movie-workbench/api`。
+
+更新时先 `git pull`，再重启 DSH，让 Host 加载新代码。
 
 ## 数据源设置
 
