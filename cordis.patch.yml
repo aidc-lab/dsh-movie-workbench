@@ -1,0 +1,8 @@
+# dsh-movie-workbench bundle patch: one Host plugin row and its browser half.
+- insert:
+    - id: dsh-movie-workbench
+      name: dsh-movie-workbench
+      config:
+        tmdbApiKey: ''
+        maxResults: 12
+        requestTimeoutMs: 8000
