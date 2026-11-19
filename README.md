@@ -6,9 +6,9 @@ A DeepSeek Harness plugin that adds a **影视工作台 / Movies workbench** pan
 search movies and TV series across **TMDB**, **IMDb** and **豆瓣** on a single page, and find BT
 resources.
 
-![alt text](./assets/home.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/home.png)
 
-![alt text](./assets/detail.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/detail.png)
 
 ## Features
 
@@ -24,7 +24,7 @@ resources.
 Paste the plugin's GitHub repository URL
 `https://github.com/aidc-lab/dsh-movie-workbench.git` into the input field, as shown below.
 
-![alt text](./assets/image.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/image.png)
 
 ### From the CLI
 
