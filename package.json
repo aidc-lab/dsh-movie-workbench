@@ -1,7 +1,6 @@
 {
   "name": "dsh-movie-workbench",
   "version": "1.0.0",
-  "private": true,
   "description": "Movies workbench — search film and TV titles across TMDB, IMDb and 豆瓣 from a left-sidebar panel.",
   "type": "module",
   "main": "index.js",
@@ -21,6 +20,25 @@
     "icon.svg",
     "README.md",
     "README.zh.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aidc-lab/dsh-movie-workbench.git"
+  },
+  "homepage": "https://github.com/aidc-lab/dsh-movie-workbench#readme",
+  "bugs": {
+    "url": "https://github.com/aidc-lab/dsh-movie-workbench/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "movies",
+    "tv",
+    "tmdb",
+    "imdb",
+    "douban"
   ],
   "dsh": {
     "bundle": {
