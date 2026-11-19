@@ -1,10 +1,10 @@
+[English](README.md) | **简体中文**
+
 # dsh-movie-workbench
 
 一个 DeepSeek Harness 插件，在左侧栏加入 **影视工作台 / Movies workbench** 面板：
 在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，浏览各渠道推荐，打开
 详情页并查找 BT 资源。
-
-English: [README.md](README.md).
 
 ## 功能
 

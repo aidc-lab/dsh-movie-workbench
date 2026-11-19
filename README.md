@@ -1,10 +1,10 @@
+**English** | [简体中文](README.zh.md)
+
 # dsh-movie-workbench
 
 A DeepSeek Harness bundle that adds a **影视工作台 / Movies workbench** panel to the
 left sidebar: search movies and TV shows across **TMDB**, **IMDb** and **豆瓣** in one
 place, browse per-channel recommendations, open a detail page and find BT resources.
-
-中文说明见 [README.zh.md](README.zh.md).
 
 ## Features
 
