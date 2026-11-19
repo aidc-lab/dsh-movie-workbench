@@ -1,6 +1,6 @@
 {
   "name": "dsh-movie-workbench",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Movies workbench — search film and TV titles across TMDB, IMDb and 豆瓣 from a left-sidebar panel.",
   "type": "module",
   "main": "index.js",
@@ -18,7 +18,6 @@
     "locale/*.json",
     "docs",
     "icon.svg",
-    "assets",
     "README.md",
     "README.zh.md"
   ],

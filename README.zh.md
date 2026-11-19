@@ -5,9 +5,9 @@
 一个 DeepSeek Harness 插件，在左侧栏加入 **影视工作台 / Movies workbench** 面板：
 在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，并查找 BT 资源。
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/home.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png)
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/detail.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)
 
 ## 功能
 
@@ -21,7 +21,7 @@
 
 直接将插件的GitHub仓库地址 `https://github.com/aidc-lab/dsh-movie-workbench.git` 拷贝到输入框中，如下图。
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/assets/image.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/image.png)
 
 ### 通过命令行
 
