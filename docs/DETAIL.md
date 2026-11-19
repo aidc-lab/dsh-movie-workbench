@@ -1,1 +1,3 @@
-![Movies workbench results and a title detail page with a back control](preview.svg)
+![home page](home.png)
+
+![detail page](detail.png)

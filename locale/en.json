@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Movies workbench",
-    "description": "Search film and TV titles across TMDB, IMDb and 豆瓣 from one panel in the left sidebar. Type a title in the search field and pick a channel (All, TMDB, IMDb, 豆瓣) to compare results; with no active search it shows one recommendation row per channel (TMDB weekly trending, a curated IMDb pick list, 豆瓣 popular titles); each channel shows posters, year, rating when the source provides one, and a short overview (豆瓣 overviews load from its subject detail API when a title is opened); selecting a result opens its own detail page (poster, original title, tags, overview and a source link) with a back control that returns to the results, and also searches the public BT4G and BitSearch indexes for that title (magnet link, size, seeders; metadata only, no torrent file is downloaded). The Host half proxies the public search endpoints (豆瓣 posters are relayed through the local plugin route because that image host rejects direct browser requests) and sends nothing to the model. TMDB needs your own API key, which you paste in the panel's key settings and which stays in this browser only; IMDb and 豆瓣 need no key. Disabling the plugin removes the sidebar entry and its local routes.",
+    "description": "A DeepSeek Harness plugin that adds a Movies workbench panel to the left sidebar: search movies and TV series across TMDB, IMDb and DouBan on a single page, and find BT resources.",
     "detail": "docs/DETAIL.md"
   }
 }
