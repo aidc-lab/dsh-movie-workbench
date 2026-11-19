@@ -20,6 +20,8 @@
 
 ## 安装
 
+### 通过插件页面
+
 1. 克隆仓库：
 
    ```bash
@@ -31,6 +33,23 @@
 
 3. 确认 `dsh-movie-workbench` 插件已启用；只有安装结果提示需要重启时才重启 DSH。之后
    左侧栏会出现「影视工作台」入口。
+
+### 通过命令行
+
+`dsh plugin` 与插件页面做的是同一件事：把包装进 profile 依赖并注册 bundle。运行前请
+先完全退出 DSH Desktop（`desktop` profile 由应用初始化，运行期间不能被占用），并确保
+`pnpm` 在 `PATH` 中。
+
+```bash
+npm install -g @deepseek-ai/dsh      # 提供 dsh 命令
+dsh plugin --profile desktop add /克隆目录的绝对路径
+```
+
+也支持 Git URL：`dsh plugin --profile desktop add
+git+https://github.com/aidc-lab/dsh-movie-workbench.git`。
+
+包尚未发布到 npm；发布之后命令可简化为
+`dsh plugin --profile desktop add dsh-movie-workbench`。安装完成后重新启动 DSH。
 
 插件是纯 JavaScript：无需构建、无需安装依赖、也无需会话。Host 端只注册一个路由
 `/movie-workbench/api`。

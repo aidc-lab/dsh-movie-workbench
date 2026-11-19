@@ -23,6 +23,8 @@ place, browse per-channel recommendations, open a detail page and find BT resour
 
 ## Install
 
+### From the Plugins page
+
 1. Clone the repository:
 
    ```bash
@@ -35,6 +37,24 @@ place, browse per-channel recommendations, open a detail page and find BT resour
 3. Make sure the `dsh-movie-workbench` bundle is enabled. Restart DSH only if the
    installation reports that a restart is required; the 影视工作台 entry then appears in
    the left sidebar.
+
+### From the CLI
+
+`dsh plugin` performs the same install as the Plugins page: it adds the package to the
+profile's dependencies and registers its bundle. Quit DSH Desktop before running it (the
+`desktop` profile is initialized by the app and must not be in use), and make sure `pnpm`
+is on `PATH`.
+
+```bash
+npm install -g @deepseek-ai/dsh      # provides the `dsh` command
+dsh plugin --profile desktop add /absolute/path/to/dsh-movie-workbench
+```
+
+A git URL works too: `dsh plugin --profile desktop add
+git+https://github.com/aidc-lab/dsh-movie-workbench.git`.
+
+The package is not published to npm yet; once it is, the command becomes
+`dsh plugin --profile desktop add dsh-movie-workbench`. Start DSH again afterwards.
 
 The bundle is plain JavaScript: no build step, no dependencies to install, and no session
 is required. Its Host half registers one route, `/movie-workbench/api`.
