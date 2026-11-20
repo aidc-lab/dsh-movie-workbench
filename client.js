@@ -32,6 +32,22 @@ window.__ModuleLoader__.load({
     const SOURCES = ['all', 'tmdb', 'imdb', 'douban']
     const TMDB_SETTINGS_URL = 'https://www.themoviedb.org/settings/api'
 
+    /* Channel browse categories (contract v1.6); the Host reports the same list. */
+    const BROWSE_CATEGORIES = {
+      tmdb: ['trending', 'movie', 'tv'],
+      imdb: ['featured', 'movie', 'tv'],
+      douban: ['popular', 'movie', 'tv'],
+    }
+
+    function channelCategories(source) {
+      return BROWSE_CATEGORIES[source] || []
+    }
+
+    /** Cache key for one channel category inside `session.channels`. */
+    function channelCacheKey(source, category) {
+      return source + '|' + category
+    }
+
     /* ------------------------------------------------------------------ */
     /* Locale dictionaries                                                 */
     /* ------------------------------------------------------------------ */
@@ -63,6 +79,16 @@ window.__ModuleLoader__.load({
       'recommend.empty': '暂无推荐',
       'recommend.more': '查看全部',
       'recommend.back': '返回推荐',
+      'browse.trending': '本周趋势',
+      'browse.featured': '精选作品',
+      'browse.popular': '热门推荐',
+      'browse.movie': '电影',
+      'browse.tv': '剧集',
+      'browse.tabs': '浏览分类',
+      'browse.loadMore': '加载更多',
+      'browse.loadingMore': '正在加载…',
+      'browse.end': '没有更多了',
+      'browse.moreFailed': '加载更多失败',
       'torrent.title': 'BT 资源',
       'torrent.note': '来自公开 BT 索引，仅供检索，请自行判断内容合法性',
       'torrent.loading': '正在搜索 BT 资源…',
@@ -157,6 +183,16 @@ window.__ModuleLoader__.load({
       'recommend.empty': 'No recommendations',
       'recommend.more': 'See all',
       'recommend.back': 'Back to recommendations',
+      'browse.trending': 'This week',
+      'browse.featured': 'Featured',
+      'browse.popular': 'Popular',
+      'browse.movie': 'Movies',
+      'browse.tv': 'TV',
+      'browse.tabs': 'Browse categories',
+      'browse.loadMore': 'Load more',
+      'browse.loadingMore': 'Loading more…',
+      'browse.end': 'No more titles',
+      'browse.moreFailed': 'Could not load more',
       'torrent.title': 'BT resources',
       'torrent.note': 'From public torrent indexes; search only — check legality yourself',
       'torrent.loading': 'Searching torrent indexes…',
@@ -646,6 +682,14 @@ window.__ModuleLoader__.load({
       '.mw-channel-title{margin:0;font-size:18px;line-height:26px;font-weight:500;color:var(--dsw-alias-label-primary);}',
       '.mw-channel-meta{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
       '.mw-channel-head .mw-more{margin-left:auto;}',
+      '.mw-tabs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:0 0 16px;border-bottom:0.5px solid var(--dsw-alias-border-l1);}',
+      '.mw-tab{position:relative;appearance:none;border:0;background:none;padding:8px 12px;border-radius:8px 8px 0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:18px;cursor:pointer;transition:color .15s ease,background-color .15s ease;}',
+      '.mw-tab:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-tab[data-selected="true"]{color:var(--dsw-alias-label-primary);font-weight:500;}',
+      '.mw-tab[data-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-0.5px;height:2px;border-radius:2px;background:var(--dsw-alias-brand-primary);}',
+      '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
+      '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
+      '.mw-more-sentinel{display:flex;justify-content:center;}',
       '.mw-idle-extras{display:flex;flex-direction:column;gap:12px;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--dsw-alias-border-l1);}',
       '.mw-toolbar-recent{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}',
       '.mw-recent-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin-right:2px;}',
@@ -961,22 +1005,44 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** One channel's longer recommendation list, opened from a row's "see all". */
+    /** One channel's longer list: category tabs, paged grid and infinite scroll. */
     function ChannelPage(props) {
       const t = props.t
       const state = props.state
       const source = state.source
+      const categories =
+        Array.isArray(state.categories) && state.categories.length > 0
+          ? state.categories
+          : channelCategories(source)
+      const activeCategory = state.category || categories[0]
+      const label = sourceLabel(t, source) + ' · ' + t('browse.' + activeCategory)
+      const items = Array.isArray(state.items) ? state.items : []
+      const loadingMore = Boolean(props.loadingMore)
+      const hasMore = Boolean(state.hasMore)
       const backRef = useRef(null)
-      const label = sourceLabel(t, source) + ' · ' + t('recommend.' + source)
+      const sentinelRef = useRef(null)
+
       useEffect(() => {
         if (backRef.current) backRef.current.focus()
       }, [])
+
+      useEffect(() => {
+        if (!hasMore || loadingMore) return undefined
+        const node = sentinelRef.current
+        if (!node || typeof IntersectionObserver !== 'function') return undefined
+        const observer = new IntersectionObserver(entries => {
+          if (entries.some(entry => entry.isIntersecting)) props.onLoadMore()
+        }, { rootMargin: '280px 0px' })
+        observer.observe(node)
+        return () => observer.disconnect()
+      }, [hasMore, loadingMore, items.length, activeCategory])
+
       let body = null
       if (state.status === 'loading') {
         body = h(Skeleton, null)
       } else if (state.status === 'error') {
         body = h(ErrorState, { t: t, code: state.failure || 'network', onRetry: props.onRetry })
-      } else if (!state.items || state.items.length === 0) {
+      } else if (items.length === 0) {
         const needsKey = state.failure === 'tmdb_key_missing'
         body = h(
           'div',
@@ -995,7 +1061,7 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'mw-grid' },
-            state.items.map(item => h(ResultCard, {
+            items.map(item => h(ResultCard, {
               key: searchKey(item),
               t: t,
               item: item,
@@ -1015,8 +1081,29 @@ window.__ModuleLoader__.load({
               }),
             )
             : null,
+          h(
+            'div',
+            { className: 'mw-more-row' },
+            loadingMore
+              ? h('span', { className: 'mw-channel-meta' }, t('browse.loadingMore'))
+              : props.moreFailure
+                ? h(
+                  'div',
+                  { className: 'mw-more-sentinel' },
+                  h('span', { className: 'mw-channel-meta' }, t('browse.moreFailed')),
+                  h('button', { type: 'button', className: 'mw-link-btn', onClick: props.onLoadMore }, t('recommend.retry')),
+                )
+                : hasMore
+                  ? h(
+                    'div',
+                    { className: 'mw-more-sentinel', ref: sentinelRef },
+                    h('button', { type: 'button', className: 'mw-btn', onClick: props.onLoadMore }, t('browse.loadMore')),
+                  )
+                  : h('span', { className: 'mw-channel-meta' }, t('browse.end')),
+          ),
         )
       }
+
       return h(
         'div',
         { className: 'mw-detail-page', role: 'region', 'aria-label': label },
@@ -1030,8 +1117,8 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'mw-channel-head' },
           h('h2', { className: 'mw-channel-title' }, label),
-          state.status === 'done' && state.items
-            ? h('span', { className: 'mw-channel-meta' }, t('results.count', { count: state.items.length }))
+          state.status === 'done'
+            ? h('span', { className: 'mw-channel-meta' }, t('results.count', { count: items.length }))
             : null,
           h(
             'button',
@@ -1041,6 +1128,27 @@ window.__ModuleLoader__.load({
             t('recommend.refresh'),
           ),
         ),
+        categories.length > 1
+          ? h(
+            'div',
+            { className: 'mw-tabs', role: 'tablist', 'aria-label': t('browse.tabs') },
+            categories.map(category => h(
+              'button',
+              {
+                key: category,
+                type: 'button',
+                role: 'tab',
+                className: 'mw-tab',
+                'aria-selected': category === activeCategory ? 'true' : 'false',
+                'data-selected': category === activeCategory ? 'true' : 'false',
+                onClick: () => {
+                  if (category !== activeCategory) props.onSelectCategory(category)
+                },
+              },
+              t('browse.' + category),
+            )),
+          )
+          : null,
         body,
       )
     }
@@ -1588,6 +1696,8 @@ window.__ModuleLoader__.load({
       const [selectedItem, setSelectedItem] = useState(session.selectedItem)
       const [suggestions, setSuggestions] = useState(session.suggestions)
       const [channel, setChannel] = useState(session.channel)
+      const [loadingMore, setLoadingMore] = useState(false)
+      const [moreFailure, setMoreFailure] = useState(null)
       const [recent, setRecent] = useState(readRecent)
       const [storedKey, setStoredKey] = useState(readTmdbKey)
       const [keyOpen, setKeyOpen] = useState(false)
@@ -1603,6 +1713,8 @@ window.__ModuleLoader__.load({
       const suggestionsAbortRef = useRef(null)
       const channelAbortRef = useRef(null)
       const channelTriggerRef = useRef(null)
+      const channelRef = useRef(channel)
+      const moreRef = useRef(false)
       const requestRef = useRef(0)
       const keyRef = useRef(storedKey)
       const sourceRef = useRef(source)
@@ -1633,6 +1745,7 @@ window.__ModuleLoader__.load({
         session.selectedItem = selectedItem
         session.suggestions = suggestions
         session.channel = channel
+        channelRef.current = channel
       }, [data, phase, failureCode, selectedItem, suggestions, channel])
       useEffect(() => {
         keyRef.current = storedKey
@@ -1805,64 +1918,195 @@ window.__ModuleLoader__.load({
         }
       }
 
-      /** Open one channel's longer list, using the 24-row "see all" request. */
+      /** Open one channel's first browse category (its "see all" entry point). */
       function openChannel(channelSource) {
-        const cached = session.channels && session.channels[channelSource]
+        switchChannel(channelSource, channelCategories(channelSource)[0])
+      }
+
+      /** Show one channel category, reusing that category's cache when present. */
+      function switchChannel(channelSource, category) {
+        if (channelAbortRef.current) channelAbortRef.current.abort()
+        moreRef.current = false
+        setLoadingMore(false)
+        setMoreFailure(null)
+        const key = channelCacheKey(channelSource, category)
+        const cached = session.channels && session.channels[key]
         if (cached && cached.status === 'done') {
           const view = {
             source: channelSource,
+            category: category,
+            categories: channelCategories(channelSource),
             status: 'done',
             items: cached.items,
             failure: cached.failure || null,
+            page: cached.page || 1,
+            hasMore: Boolean(cached.hasMore),
+            cursor: cached.cursor || null,
           }
           setChannel(view)
           session.channel = view
           return
         }
-        void loadChannel(channelSource)
+        void loadChannel(channelSource, category, 1)
       }
 
-      async function loadChannel(channelSource) {
+      /** Load one page of a channel category; pages above 1 append to the grid. */
+      async function loadChannel(channelSource, category, page) {
+        const categories = channelCategories(channelSource)
+        const activeCategory = category || categories[0]
+        const append = page > 1
+        if (append) {
+          if (moreRef.current) return
+          moreRef.current = true
+          setLoadingMore(true)
+          setMoreFailure(null)
+        }
         if (channelAbortRef.current) channelAbortRef.current.abort()
         const controller = new AbortController()
         channelAbortRef.current = controller
-        const loading = { source: channelSource, status: 'loading', items: [], failure: null }
-        setChannel(loading)
-        session.channel = loading
+        if (!append) {
+          const loading = {
+            source: channelSource,
+            category: activeCategory,
+            categories: categories,
+            status: 'loading',
+            items: [],
+            failure: null,
+            page: 0,
+            hasMore: false,
+            cursor: null,
+          }
+          setChannel(loading)
+          session.channel = loading
+        }
         const params = new URLSearchParams()
         params.set('source', channelSource)
+        params.set('category', activeCategory)
+        params.set('page', String(page))
+        const cursor = append && channelRef.current ? String(channelRef.current.cursor || '') : ''
+        if (cursor) params.set('cursor', cursor)
         params.set('lang', languageForSearch(getLocale()))
-        params.set('limit', '24')
         const headers = { accept: 'application/json' }
         if (keyRef.current) headers['x-mw-tmdb-key'] = keyRef.current
         try {
-          const body = await callApi('/trending?' + params.toString(), { headers, signal: controller.signal })
+          const body = await callApi('/browse?' + params.toString(), {
+            headers: headers,
+            signal: controller.signal,
+          })
           if (controller.signal.aborted) return
-          const items = Array.isArray(body.results) ? body.results : []
+          const items = Array.isArray(body.items) ? body.items : []
           const errors = Array.isArray(body.errors) ? body.errors : []
-          const cached = {
-            status: 'done',
-            items: items,
-            failure: errors.length > 0 ? (errors[0].code || 'upstream_error') : null,
+          const failure = errors.length > 0 ? (errors[0].code || 'upstream_error') : null
+          const returnedPage = Number.isInteger(body.page) && body.page > 0 ? body.page : page
+          const hasMore = Boolean(body.hasMore)
+          const next = typeof body.next === 'string' && body.next ? body.next : null
+          const key = channelCacheKey(channelSource, activeCategory)
+          if (append) {
+            const current = channelRef.current
+            if (!current || current.source !== channelSource || current.category !== activeCategory) return
+            const seen = new Set(
+              (current.items || []).map(entry => String(entry.source) + '|' + String(entry.id)),
+            )
+            const fresh = items.filter(
+              entry => !seen.has(String(entry.source) + '|' + String(entry.id)),
+            )
+            const view = {
+              ...current,
+              status: 'done',
+              items: (current.items || []).concat(fresh),
+              failure: current.failure || failure,
+              page: returnedPage,
+              hasMore: hasMore,
+              cursor: next,
+              categories: categories,
+            }
+            session.channels = {
+              ...(session.channels || {}),
+              [key]: {
+                status: 'done',
+                items: view.items,
+                failure: view.failure,
+                page: view.page,
+                hasMore: view.hasMore,
+                cursor: view.cursor,
+              },
+            }
+            setChannel(view)
+            session.channel = view
+          } else {
+            const view = {
+              source: channelSource,
+              category: activeCategory,
+              categories: categories,
+              status: 'done',
+              items: items,
+              failure: failure,
+              page: returnedPage,
+              hasMore: hasMore,
+              cursor: next,
+            }
+            session.channels = {
+              ...(session.channels || {}),
+              [key]: {
+                status: 'done',
+                items: items,
+                failure: failure,
+                page: returnedPage,
+                hasMore: hasMore,
+                cursor: next,
+              },
+            }
+            setChannel(view)
+            session.channel = view
           }
-          session.channels = { ...(session.channels || {}), [channelSource]: cached }
-          const view = { source: channelSource, ...cached }
-          setChannel(view)
-          session.channel = view
         } catch (error) {
           if (controller.signal.aborted) return
-          const failed = {
-            source: channelSource,
-            status: 'error',
-            items: [],
-            failure: error && error.code ? error.code : 'network',
+          const code = error && error.code ? error.code : 'network'
+          if (append) {
+            setMoreFailure(code)
+          } else {
+            const failed = {
+              source: channelSource,
+              category: activeCategory,
+              categories: categories,
+              status: 'error',
+              items: [],
+              failure: code,
+              page: 0,
+              hasMore: false,
+              cursor: null,
+            }
+            setChannel(failed)
+            session.channel = failed
           }
-          setChannel(failed)
-          session.channel = failed
+        } finally {
+          if (append) {
+            moreRef.current = false
+            setLoadingMore(false)
+          }
         }
       }
 
+      /** Clear the open channel's cache and reload its first page. */
+      function reloadChannel() {
+        if (!channel) return
+        const key = channelCacheKey(channel.source, channel.category)
+        if (session.channels) delete session.channels[key]
+        setMoreFailure(null)
+        void loadChannel(channel.source, channel.category, 1)
+      }
+
+      /** Append the next page of the open channel. */
+      function loadMoreChannel() {
+        if (!channel || !channel.hasMore || moreRef.current) return
+        void loadChannel(channel.source, channel.category, (channel.page || 1) + 1)
+      }
+
       function closeChannel() {
+        if (channelAbortRef.current) channelAbortRef.current.abort()
+        moreRef.current = false
+        setLoadingMore(false)
+        setMoreFailure(null)
         setChannel(null)
         session.channel = null
         const focusTrigger = () => {
@@ -1923,7 +2167,7 @@ window.__ModuleLoader__.load({
         session.suggestions = null
         setSuggestions(null)
         session.channels = {}
-        if (channel) void loadChannel(channel.source)
+        if (channel) reloadChannel()
         void loadSuggestions()
         if (data && data.query) void runSearch(data.query, sourceRef.current)
       }
@@ -1938,7 +2182,7 @@ window.__ModuleLoader__.load({
         session.suggestions = null
         setSuggestions(null)
         session.channels = {}
-        if (channel) void loadChannel(channel.source)
+        if (channel) reloadChannel()
         void loadSuggestions()
         if (data && data.query) void runSearch(data.query, sourceRef.current)
       }
@@ -1973,6 +2217,7 @@ window.__ModuleLoader__.load({
           session.source = nextSource
         }
         session.channels = {}
+        if (channel && next[channel.source] !== false) reloadChannel()
         if (phase === 'idle') {
           session.suggestions = null
           setSuggestions(null)
@@ -2312,13 +2557,13 @@ window.__ModuleLoader__.load({
               ? h(ChannelPage, {
                 t: t,
                 state: channel,
+                loadingMore: loadingMore,
+                moreFailure: moreFailure,
                 onBack: closeChannel,
-                onRetry: () => {
-                  void loadChannel(channel.source)
-                },
-                onRefresh: () => {
-                  void loadChannel(channel.source)
-                },
+                onRetry: reloadChannel,
+                onRefresh: reloadChannel,
+                onLoadMore: loadMoreChannel,
+                onSelectCategory: category => switchChannel(channel.source, category),
                 onOpenKey: () => setKeyOpen(true),
                 onSelect: item => setSelectedItem(item),
               })

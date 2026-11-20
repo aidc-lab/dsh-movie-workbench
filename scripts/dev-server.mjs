@@ -12,6 +12,7 @@
  *   /search?q=Inception&source=all            (expects tmdb_key_missing)
  *   /trending?source=douban|imdb|all          (v1.1 idle recommendations)
  *   /trending?...&limit=24|abc|0|99           (v1.2 "see all" limit)
+ *   /browse?source=douban|imdb|tmdb&category=&page=&cursor=   (v1.7 channel tabs + paging)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
@@ -27,7 +28,11 @@
 import http from 'node:http'
 
 import { createHandler } from '../lib/host.js'
-import { DEFAULT_USER_AGENT, IMDB_TRENDING_SEEDS } from '../lib/providers.js'
+import {
+  DEFAULT_USER_AGENT,
+  IMDB_TRENDING_SEEDS,
+  normalizeTmdbBrowseItem,
+} from '../lib/providers.js'
 
 // Make the missing-credential case deterministic in this dev harness only.
 delete process.env.TMDB_API_KEY
@@ -588,6 +593,243 @@ async function main() {
       `${trendingImdbCapped.body?.results?.length} row(s), errors=${JSON.stringify(
         trendingImdbCapped.body?.errors,
       )}`,
+    )
+
+    /* ---------------- /browse (contract v1.6) ---------------- */
+    const browseDouban = await getJson(`${api}/browse?source=douban&category=movie&page=1`)
+    const browseDoubanItems = Array.isArray(browseDouban.body?.items)
+      ? browseDouban.body.items
+      : []
+    check(
+      'GET /browse?source=douban&category=movie&page=1 -> 200 ok:true with one normalized page',
+      browseDouban.response.status === 200 &&
+        browseDouban.body?.ok === true &&
+        browseDouban.body?.source === 'douban' &&
+        browseDouban.body?.category === 'movie' &&
+        browseDouban.body?.page === 1 &&
+        browseDouban.body?.pageSize === 20 &&
+        Array.isArray(browseDouban.body?.categories) &&
+        browseDouban.body.categories.join(',') === 'popular,movie,tv' &&
+        browseDoubanItems.length === 20 &&
+        browseDoubanItems.every(isNormalizedResult) &&
+        browseDoubanItems.every((row) => row.source === 'douban' && row.kind === 'movie') &&
+        browseDouban.body?.hasMore === true &&
+        Array.isArray(browseDouban.body?.errors) &&
+        browseDouban.body.errors.length === 0,
+      `HTTP ${browseDouban.response.status}, ${browseDoubanItems.length} row(s), hasMore=${browseDouban.body?.hasMore}`,
+    )
+
+    const browseDoubanPage2 = await getJson(`${api}/browse?source=douban&category=movie&page=2`)
+    const browseDoubanPage2Items = Array.isArray(browseDoubanPage2.body?.items)
+      ? browseDoubanPage2.body.items
+      : []
+    const browseDoubanPage1Ids = new Set(browseDoubanItems.map((row) => row.id))
+    check(
+      'Douban browse page=2 returns the next page (no overlap with page 1)',
+      browseDoubanPage2.response.status === 200 &&
+        browseDoubanPage2.body?.page === 2 &&
+        browseDoubanPage2Items.length === 20 &&
+        browseDoubanPage2Items.every((row) => !browseDoubanPage1Ids.has(row.id)),
+      `${browseDoubanPage2Items.length} row(s)`,
+    )
+
+    const browseDefaultCategory = await getJson(`${api}/browse?source=douban`)
+    check(
+      'browse omits category -> falls back to the first category (douban: popular)',
+      browseDefaultCategory.response.status === 200 &&
+        browseDefaultCategory.body?.category === 'popular',
+      `category=${browseDefaultCategory.body?.category}`,
+    )
+
+    const browseDoubanPopular = await getJson(`${api}/browse?source=douban&category=popular&page=1`)
+    const browseDoubanPopularItems = Array.isArray(browseDoubanPopular.body?.items)
+      ? browseDoubanPopular.body.items
+      : []
+    check(
+      'Douban popular browse page=1 interleaves movie and TV hot rows',
+      browseDoubanPopular.response.status === 200 &&
+        browseDoubanPopularItems.length === 20 &&
+        browseDoubanPopularItems[0]?.kind === 'movie' &&
+        browseDoubanPopularItems[1]?.kind === 'tv' &&
+        browseDoubanPopularItems.some((row) => row.kind === 'tv') &&
+        browseDoubanPopular.body?.hasMore === true,
+      `${browseDoubanPopularItems.length} row(s), hasMore=${browseDoubanPopular.body?.hasMore}`,
+    )
+
+    const browseImdbFeatured = await getJson(`${api}/browse?source=imdb&category=featured&page=1`)
+    const browseImdbFeaturedItems = Array.isArray(browseImdbFeatured.body?.items)
+      ? browseImdbFeatured.body.items
+      : []
+    const featuredCursor = browseImdbFeatured.body?.next
+    check(
+      'IMDb featured browse page=1 mixes movie and TV rows and returns a cursor',
+      browseImdbFeatured.response.status === 200 &&
+        browseImdbFeatured.body?.category === 'featured' &&
+        browseImdbFeaturedItems.length === 20 &&
+        browseImdbFeaturedItems.every((row) => row.source === 'imdb') &&
+        browseImdbFeaturedItems.some((row) => row.kind === 'movie') &&
+        browseImdbFeaturedItems.some((row) => row.kind === 'tv') &&
+        browseImdbFeatured.body?.hasMore === true &&
+        typeof featuredCursor === 'string' &&
+        featuredCursor.length > 0,
+      `${browseImdbFeaturedItems.length} row(s), hasMore=${browseImdbFeatured.body?.hasMore}`,
+    )
+
+    const browseImdbTv = await getJson(`${api}/browse?source=imdb&category=tv&page=1`)
+    const browseImdbTvItems = Array.isArray(browseImdbTv.body?.items)
+      ? browseImdbTv.body.items
+      : []
+    const imdbTvCursor = browseImdbTv.body?.next
+    check(
+      'IMDb TV browse page=1 returns 20 popularity rows and a cursor',
+      browseImdbTv.response.status === 200 &&
+        browseImdbTv.body?.ok === true &&
+        browseImdbTv.body?.category === 'tv' &&
+        browseImdbTvItems.length === 20 &&
+        browseImdbTvItems.every((row) => row.source === 'imdb' && row.kind === 'tv') &&
+        browseImdbTv.body?.hasMore === true &&
+        typeof imdbTvCursor === 'string' &&
+        imdbTvCursor.length > 0,
+      `${browseImdbTvItems.length} row(s), hasMore=${browseImdbTv.body?.hasMore}`,
+    )
+
+    const browseImdbTvPage2 = await getJson(
+      `${api}/browse?source=imdb&category=tv&page=2&cursor=${encodeURIComponent(imdbTvCursor || '')}`,
+    )
+    const browseImdbTvPage2Items = Array.isArray(browseImdbTvPage2.body?.items)
+      ? browseImdbTvPage2.body.items
+      : []
+    const browseImdbTvPage1Ids = new Set(browseImdbTvItems.map((row) => row.id))
+    check(
+      'IMDb TV browse cursor page=2 returns the next rows with no overlap',
+      browseImdbTvPage2.response.status === 200 &&
+        browseImdbTvPage2Items.length === 20 &&
+        browseImdbTvPage2Items.every((row) => !browseImdbTvPage1Ids.has(row.id)) &&
+        browseImdbTvPage2.body?.hasMore === true,
+      `${browseImdbTvPage2Items.length} row(s), hasMore=${browseImdbTvPage2.body?.hasMore}`,
+    )
+
+    const browseImdbMovie = await getJson(`${api}/browse?source=imdb&category=movie&page=1`)
+    const browseImdbMovieItems = Array.isArray(browseImdbMovie.body?.items)
+      ? browseImdbMovie.body.items
+      : []
+    const imdbMovieCursor = browseImdbMovie.body?.next
+    check(
+      'IMDb movie browse page=1 returns 20 popularity rows and a cursor',
+      browseImdbMovie.response.status === 200 &&
+        browseImdbMovieItems.length === 20 &&
+        browseImdbMovieItems.every((row) => row.source === 'imdb' && row.kind === 'movie') &&
+        browseImdbMovie.body?.hasMore === true &&
+        typeof imdbMovieCursor === 'string' &&
+        imdbMovieCursor.length > 0,
+      `${browseImdbMovieItems.length} row(s), hasMore=${browseImdbMovie.body?.hasMore}`,
+    )
+
+    const browseImdbMoviePage2 = await getJson(
+      `${api}/browse?source=imdb&category=movie&page=2&cursor=${encodeURIComponent(imdbMovieCursor || '')}`,
+    )
+    const browseImdbMoviePage2Items = Array.isArray(browseImdbMoviePage2.body?.items)
+      ? browseImdbMoviePage2.body.items
+      : []
+    const browseImdbMoviePage1Ids = new Set(browseImdbMovieItems.map((row) => row.id))
+    check(
+      'IMDb movie browse cursor page=2 returns the next rows with no overlap',
+      browseImdbMoviePage2.response.status === 200 &&
+        browseImdbMoviePage2Items.length === 20 &&
+        browseImdbMoviePage2Items.every((row) => !browseImdbMoviePage1Ids.has(row.id)) &&
+        browseImdbMoviePage2.body?.hasMore === true,
+      `${browseImdbMoviePage2Items.length} row(s), hasMore=${browseImdbMoviePage2.body?.hasMore}`,
+    )
+
+    const browseImdbBadCursor = await getJson(
+      `${api}/browse?source=imdb&category=movie&page=1&cursor=${'x'.repeat(5000)}`,
+    )
+    check(
+      'browse with an oversized cursor -> 400 bad_cursor',
+      browseImdbBadCursor.response.status === 400 &&
+        browseImdbBadCursor.body?.ok === false &&
+        browseImdbBadCursor.body?.code === 'bad_cursor',
+      `HTTP ${browseImdbBadCursor.response.status}`,
+    )
+
+    const tmdbMovieRow = normalizeTmdbBrowseItem(
+      { id: 27205, title: 'Inception', release_date: '2010-07-15', vote_average: 8.4, poster_path: '/x.jpg' },
+      'movie',
+    )
+    check(
+      '/movie/popular rows (no media_type) are inferred as movie',
+      tmdbMovieRow?.kind === 'movie' && tmdbMovieRow?.id === '27205',
+      `kind=${tmdbMovieRow?.kind}`,
+    )
+    const tmdbTvRow = normalizeTmdbBrowseItem(
+      { id: 1396, name: 'Breaking Bad', first_air_date: '2008-01-20' },
+      'tv',
+    )
+    check(
+      '/tv/popular rows (no media_type) are inferred as tv',
+      tmdbTvRow?.kind === 'tv' && tmdbTvRow?.id === '1396',
+      `kind=${tmdbTvRow?.kind}`,
+    )
+    const tmdbTrendingRow = normalizeTmdbBrowseItem(
+      { id: 550, media_type: 'movie', title: 'Fight Club' },
+      'trending',
+    )
+    check(
+      'trending rows keep their own media_type',
+      tmdbTrendingRow?.kind === 'movie' && tmdbTrendingRow?.id === '550',
+      `kind=${tmdbTrendingRow?.kind}`,
+    )
+
+    const browseTmdbNoKey = await getJson(`${api}/browse?source=tmdb&category=trending&page=1`)
+    check(
+      'browse tmdb without a key -> 200 with tmdb_key_missing and an empty page',
+      browseTmdbNoKey.response.status === 200 &&
+        browseTmdbNoKey.body?.ok === true &&
+        browseTmdbNoKey.body?.items?.length === 0 &&
+        browseTmdbNoKey.body?.hasMore === false &&
+        browseTmdbNoKey.body?.errors?.some(
+          (entry) => entry.source === 'tmdb' && entry.code === 'tmdb_key_missing',
+        ),
+      `HTTP ${browseTmdbNoKey.response.status}`,
+    )
+
+    const browseMissingSource = await getJson(`${api}/browse?category=movie`)
+    check(
+      'browse without source -> 400 bad_source',
+      browseMissingSource.response.status === 400 &&
+        browseMissingSource.body?.code === 'bad_source',
+      `HTTP ${browseMissingSource.response.status}`,
+    )
+
+    const browseAllSource = await getJson(`${api}/browse?source=all`)
+    check(
+      'browse source=all -> 400 bad_source (single channel only)',
+      browseAllSource.response.status === 400 &&
+        browseAllSource.body?.code === 'bad_source',
+      `HTTP ${browseAllSource.response.status}`,
+    )
+
+    const browseBadCategory = await getJson(`${api}/browse?source=imdb&category=trending`)
+    check(
+      'browse unsupported category -> 400 bad_category',
+      browseBadCategory.response.status === 400 &&
+        browseBadCategory.body?.code === 'bad_category',
+      `HTTP ${browseBadCategory.response.status}`,
+    )
+
+    const browseBadPage = await getJson(`${api}/browse?source=douban&page=101`)
+    check(
+      'browse page=101 -> 400 bad_page',
+      browseBadPage.response.status === 400 && browseBadPage.body?.code === 'bad_page',
+      `HTTP ${browseBadPage.response.status}`,
+    )
+
+    const browseNonNumericPage = await getJson(`${api}/browse?source=douban&page=abc`)
+    check(
+      'browse page=abc -> 400 bad_page',
+      browseNonNumericPage.response.status === 400 &&
+        browseNonNumericPage.body?.code === 'bad_page',
+      `HTTP ${browseNonNumericPage.response.status}`,
     )
 
     /* ---------------- /image proxy ---------------- */

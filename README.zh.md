@@ -2,17 +2,18 @@
 
 # dsh-movie-workbench
 
-一个 DeepSeek Harness 插件，在左侧栏加入 **影视工作台** 面板：
-在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，并查找 BT 资源。
+DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，自动发现 BT 资源。
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png)
-
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)
+|  |  |
+|------|------|
+| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)   |
 
 ## 功能
 
 - **影视搜索** — 结果按渠道分组，含海报、年份、评分与来源链接。
-- **热门推荐** — 展示各渠道热门推荐影视。
+- **热门推荐** — 首页展示各渠道热门推荐影视。
+- **渠道浏览** — 点进渠道进入独立页面，按分类标签切换（TMDB：本周趋势 / 电影 / 剧集；
+  IMDb：精选作品 / 电影 / 剧集；豆瓣：热门推荐 / 电影 / 剧集），下滑自动加载下一页。
 - **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序；可复制磁力链接或打开来源页。
 
 ## 安装
@@ -51,12 +52,14 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `GET /status` | 各渠道是否已配置凭据 |
 | `GET /search?q=&source=&lang=` | 分发到所选渠道并返回归一化结果 |
 | `GET /trending?source=&lang=&limit=` | 推荐行，或单个渠道的更长列表 |
+| `GET /browse?source=&category=&page=&cursor=&lang=` | 渠道浏览分类的一页（20 条），返回 `hasMore` 与 IMDb 的不透明 `next` 游标用于无限加载 |
 | `GET /detail?source=douban&id=` | 豆瓣条目的简介与元数据 |
 | `GET /torrents?q=&alt=&source=&limit=` | BT 资源搜索 |
 | `GET /image?url=` | 代理白名单图床的海报 |
 
 所有上游 HTTP 请求都在 Host 完成，因此页面保持同源，豆瓣的 `Referer` 要求也在服务端
-处理。
+处理。IMDb 浏览页通过 IMDb 的浏览器 GraphQL 接口做游标分页，可以一直下滑加载新条目；
+首页推荐行仍使用固定精选列表，因此数量有限。
 
 ## 配置
 
@@ -77,5 +80,7 @@ TMDB 需要凭据：可设置 `tmdbApiKey`，或在面板的 Key 控件里粘贴
   `api.themoviedb.org`、`v2.sg.media-imdb.com`、`movie.douban.com`、`bt4gprx.com`、
   `bitsearch.to` 及海报图床。
 - IMDb 搜索结果没有评分；豆瓣推荐带公开的 `rate`；TMDB 提供评分与票数。
+- 渠道浏览每页 20 条、最多 10 页；IMDb 浏览页基于精选种子列表经 suggestion API 解析，
+  因此一页可能不足 20 条。
 - suggestion、rexxar、BT4G 与 BitSearch 都是未公开接口，可能变更或限流；失败时按渠道
   单独提示，不影响其他渠道。

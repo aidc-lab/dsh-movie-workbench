@@ -2,18 +2,19 @@
 
 # dsh-movie-workbench
 
-A DeepSeek Harness plugin that adds a **Movies workbench** panel to the left sidebar:
-search movies and TV series across **TMDB**, **IMDb** and **DouBan** on a single page, and find BT
-resources.
+DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb** and **Douban** on one page and automatically discover BT resources.
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png)
-
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)
+|  |  |
+|------|------|
+| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)   |
 
 ## Features
 
 - **Film & TV search** — results grouped by channel, with posters, years, ratings and source links.
-- **Trending** — each channel's popular movies and TV series.
+- **Trending** — each channel's popular movies and TV series on the home page.
+- **Channel browse** — open any channel for its own page with category tabs (TMDB: This week /
+  Movies / TV; IMDb: Featured / Movies / TV; DouBan: Popular / Movies / TV) and infinite scroll for
+  the next pages.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads; copy the magnet
   link or open the source page.
 
@@ -55,6 +56,7 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /status` | whether each channel has credentials |
 | `GET /search?q=&source=&lang=` | dispatch to the selected channels and return normalized results |
 | `GET /trending?source=&lang=&limit=` | recommendation rows, or a longer list for one channel |
+| `GET /browse?source=&category=&page=&cursor=&lang=` | one page (20 items) of a channel browse category; returns `hasMore` and, for IMDb, an opaque `next` cursor for infinite scroll |
 | `GET /detail?source=douban&id=` | synopsis and metadata for a DouBan title |
 | `GET /torrents?q=&alt=&source=&limit=` | BT resource search |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
@@ -78,9 +80,12 @@ panel (stored only in the local browser). IMDb and DouBan need no key.
 ## Notes
 
 - Requires the DSH Web GUI (it provides `ctx.webServer`) and access to `api.themoviedb.org`,
-  `v2.sg.media-imdb.com`, `movie.douban.com`, `bt4gprx.com`, `bitsearch.to` and the poster image
-  hosts.
+  `v2.sg.media-imdb.com`, `api.graphql.imdb.com`, `movie.douban.com`, `bt4gprx.com`,
+  `bitsearch.to` and the poster image hosts.
 - IMDb search results carry no rating; DouBan recommendations include the public `rate`; TMDB
   provides ratings and vote counts.
+- Channel browse pages return 20 items per page and stop at page 100. IMDb browse pages are
+  cursor paged through IMDb's browser GraphQL popularity index, so scrolling keeps loading new
+  titles; the home Trending row still uses a curated seed list, which is why it is limited.
 - suggestion, rexxar, BT4G and BitSearch are undocumented endpoints and may change or rate-limit;
   failures are surfaced per channel and do not affect the others.

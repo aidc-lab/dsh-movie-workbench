@@ -395,3 +395,76 @@ site id. Stable error codes: `empty_query`, `bad_source`, `upstream_error`,
   from config but at least 15 s (the scraped pages are slower than the JSON APIs),
   at most 2 pages worth of rows (the first page is enough), no console output. Cache successful provider responses in Host memory for 10
   minutes keyed by `(provider, query)`, capped at a small number of entries.
+
+## Channel browse: `GET /movie-workbench/api/browse` (v1.7)
+
+One page of a single channel's browse categories, for channel pages with category
+tabs and infinite scroll.
+
+### Request
+
+| Parameter | Required | Rules |
+|---|---|---|
+| `source` | yes | exactly one of `tmdb`, `imdb`, `douban`; `all` and unknown values are rejected |
+| `category` | no | must belong to that source's list (below); defaults to the first category |
+| `page` | no | integer `1`–`10`, defaults to `1` |
+| `lang` | no | `zh`/`en`; TMDB maps it to `language`, other providers ignore it |
+
+Category lists:
+
+```json
+{ "tmdb": ["trending", "movie", "tv"],
+  "imdb": ["featured", "movie", "tv"],
+  "douban": ["popular", "movie", "tv"] }
+```
+
+### Response
+
+Always HTTP 200 for a valid request; a provider failure returns an empty page with
+an `errors` entry instead of a 5xx:
+
+```json
+{
+  "ok": true,
+  "source": "douban",
+  "category": "movie",
+  "categories": ["movie", "tv"],
+  "page": 1,
+  "pageSize": 20,
+  "tookMs": 240,
+  "items": [ /* same normalized row shape as /search */ ],
+  "hasMore": true,
+  "next": null,
+  "errors": []
+}
+```
+
+Field rules: `items` normalized rows for the requested channel; `page` echoes the
+served page (integer); `pageSize` is always `20`; `hasMore` is `true` when a later
+page may contain rows; `next` is an opaque cursor for IMDb (null for TMDB,
+DouBan and the last IMDb page), sent back as `&cursor=`; `errors` is empty on
+success, otherwise one
+`{source, code, message}` provider failure and `items: []`.
+
+Stable error codes: `bad_source`, `bad_category`, `bad_page`, `bad_cursor` (HTTP 400), plus the
+provider codes surfaced through `errors` (`tmdb_key_missing`, `tmdb_unauthorized`,
+`upstream_error`, `timeout`, …).
+
+### Provider paging
+
+- **TMDB** — `trending` uses `/3/trending/all/week` with `page`; `movie` and `tv`
+  use `/3/movie/popular` and `/3/tv/popular` with `page`; `hasMore` comes from
+  `total_pages`.
+- **IMDb** — keyless, cursor paged through the browser GraphQL endpoint
+  `POST https://api.graphql.imdb.com/` (`advancedTitleSearch`, `sortBy: POPULARITY`).
+  Every category returns 20 rows per page: `movie` searches title kind `movie`,
+  `tv` searches `tvSeries` + `tvMiniSeries`, and `featured` searches all three
+  kinds in one popularity-ordered list (so movies and series appear mixed). The
+  response carries an opaque `next` token (base64url of the GraphQL page cursor)
+  that the client sends back as `cursor` to fetch the following page — IMDb
+  therefore keeps paging far beyond the 48 curated seeds. The home `/trending`
+  row still resolves the curated seed list (cache 3h).
+- **Douban** — keyless `j/search_subjects` with `tag=热门`.
+  `popular` interleaves 10 hot movie rows and 10 hot TV rows per page
+  (`page_start=(page-1)*10` each), so the page alternates movie/TV;
+  `movie` / `tv` use `page_limit=20` and `page_start=(page-1)*20`.

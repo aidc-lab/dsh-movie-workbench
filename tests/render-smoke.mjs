@@ -303,19 +303,41 @@ assert.ok(!singleSourceHtml.includes('value="douban"'), 'single source: douban o
 assert.ok(!singleSourceHtml.includes('精选作品'), 'single source: IMDb row hidden')
 assert.ok(!singleSourceHtml.includes('热门推荐'), 'single source: 豆瓣 row hidden')
 
-const CHANNEL = { source: 'douban', status: 'done', items: [ITEMS[2], ITEMS[1], ITEMS[0]], failure: null }
+const CHANNEL = {
+  source: 'douban',
+  category: 'movie',
+  categories: ['movie', 'tv'],
+  status: 'done',
+  items: [ITEMS[2], ITEMS[1], ITEMS[0]],
+  failure: null,
+  page: 1,
+  hasMore: true,
+}
 const channelHtml = renderState('channel', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(CHANNEL)}, channels: {} }`, [
   ['data-view="channel"', 'channel view'],
   ['返回推荐', 'channel back label'],
   ['mw-channel-title', 'channel heading'],
-  ['豆瓣 · 热门推荐', 'channel heading text'],
+  ['豆瓣 · 电影', 'channel heading text'],
   ['mw-channel-meta', 'channel row count'],
+  ['class="mw-tabs"', 'channel category tabs'],
+  ['role="tab"', 'channel tab buttons'],
+  ['data-selected="true"', 'active tab marker'],
+  ['剧集', 'second tab label'],
   ['class="mw-grid"', 'channel poster grid'],
   ['mw-card-title', 'channel cards'],
+  ['加载更多', 'load-more control'],
   ['刷新', 'channel refresh control'],
 ])
-assert.ok(!channelHtml.includes('class="mw-detail-page"') === false, 'channel page uses the page container')
+assert.ok(!channelHtml.includes('mw-detail-page') === false, 'channel page uses the page container')
 assert.ok(channelHtml.includes('class="mw-back"'), 'channel page has a back control')
+
+const CHANNEL_END = { ...CHANNEL, page: 3, hasMore: false }
+const channelEndHtml = renderState('channel (end)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(CHANNEL_END)}, channels: {} }`, [
+  ['没有更多了', 'end-of-list copy'],
+  ['class="mw-grid"', 'channel poster grid'],
+])
+assert.ok(!channelEndHtml.includes('加载更多'), 'channel end: no load-more button')
+assert.ok(!channelEndHtml.includes('class="mw-more-sentinel"'), 'channel end: no load-more sentinel')
 
 const detailHtml = renderState('detail', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {} }`, [
   ['data-view="detail"', 'detail view'],
