@@ -4,9 +4,8 @@
 
 DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb** and **Douban** on one page and automatically discover BT resources.
 
-|  |  |
+| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)  |
 |------|------|
-| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)   |
 
 ## Features
 
@@ -25,7 +24,7 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 Paste the plugin's GitHub repository URL
 `https://github.com/aidc-lab/dsh-movie-workbench.git` into the input field, as shown below.
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/image.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/install.png)
 
 ### From the CLI
 

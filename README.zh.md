@@ -4,9 +4,8 @@
 
 DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆瓣** 的电影与剧集，自动发现 BT 资源。
 
-|  |  |
+| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)  |
 |------|------|
-| ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/home.png) | ![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/detail.png)   |
 
 ## 功能
 
@@ -22,7 +21,7 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
 
 直接将插件的GitHub仓库地址 `https://github.com/aidc-lab/dsh-movie-workbench.git` 拷贝到输入框中，如下图。
 
-![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/image.png)
+![alt text](https://raw.githubusercontent.com/aidc-lab/dsh-movie-workbench/main/docs/install.png)
 
 ### 通过命令行
 
