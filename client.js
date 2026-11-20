@@ -125,6 +125,8 @@ window.__ModuleLoader__.load({
       'browse.moreFailed': '加载更多失败',
       'browse.lists': '片单',
       'lists.official': '官方榜单',
+      'lists.annual': '年度榜单',
+      'lists.hidden': '冷门佳作',
       'lists.rating': '高分经典',
       'lists.heat': '近期热门',
       'chart.back': '返回片单',
@@ -238,7 +240,9 @@ window.__ModuleLoader__.load({
       'browse.moreFailed': 'Could not load more',
       'browse.lists': 'Lists',
       'lists.official': 'Official charts',
-      'lists.rating': 'Classic high scores',
+      'lists.annual': 'Annual',
+      'lists.hidden': 'Hidden gems',
+      'lists.rating': 'High-score classics',
       'lists.heat': 'Recent hits',
       'chart.back': 'Back to lists',
       'chart.count': '{count} titles',
@@ -445,6 +449,58 @@ window.__ModuleLoader__.load({
       const error = new Error(code)
       error.code = code
       return error
+    }
+
+    /* Generated charts (year / hidden / genre) carry no catalog cover, so the
+       first title's poster is fetched lazily and reused as the card cover.
+       Requests are coalesced per chart id and limited so a long 片单 catalog
+       does not burst the Host. */
+    const chartCoverCache = new Map()
+    const chartCoverPending = new Map()
+    const CHART_COVER_CONCURRENCY = 4
+    let chartCoverActive = 0
+    const chartCoverQueue = []
+
+    function runChartCoverTask(task) {
+      chartCoverActive += 1
+      Promise.resolve()
+        .then(task)
+        .catch(() => {})
+        .finally(() => {
+          chartCoverActive -= 1
+          const next = chartCoverQueue.shift()
+          if (next) runChartCoverTask(next)
+        })
+    }
+
+    function chartCoverFor(chartId) {
+      if (chartCoverCache.has(chartId)) return Promise.resolve(chartCoverCache.get(chartId))
+      if (chartCoverPending.has(chartId)) return chartCoverPending.get(chartId)
+      const promise = new Promise(resolve => {
+        /* Ask for a few rows: genre charts prepend an announcement card that
+           the Host filters out, so count=1 can come back empty. */
+        const task = () => callApi(
+          '/chart?source=douban&id=' + encodeURIComponent(chartId) + '&start=0&count=3',
+        )
+          .then(body => {
+            const items = Array.isArray(body.items) ? body.items : []
+            const first = items.find(item => item && typeof item.poster === 'string' && item.poster)
+            const cover = first ? first.poster : ''
+            chartCoverCache.set(chartId, cover)
+            resolve(cover)
+          })
+          .catch(() => {
+            /* A failed cover request should not retry on every render. */
+            chartCoverCache.set(chartId, '')
+            resolve('')
+          })
+          .finally(() => chartCoverPending.delete(chartId))
+        const start = () => runChartCoverTask(task)
+        if (chartCoverActive >= CHART_COVER_CONCURRENCY) chartCoverQueue.push(start)
+        else start()
+      })
+      chartCoverPending.set(chartId, promise)
+      return promise
     }
 
     /* ------------------------------------------------------------------ */
@@ -748,13 +804,20 @@ window.__ModuleLoader__.load({
       '.mw-more-sentinel{display:flex;justify-content:center;}',
       '.mw-chart-section{margin-bottom:24px;}',
       '.mw-chart-section:last-child{margin-bottom:8px;}',
-      '.mw-chart-section-title{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--dsw-alias-label-primary);}',
+      '.mw-chart-section-head{display:flex;align-items:center;gap:8px;width:100%;padding:0 0 12px;border:0;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer;}',
+      '.mw-chart-section-head:hover .mw-chart-section-title{color:var(--dsw-alias-brand-primary);}',
+      '.mw-chart-section-title{flex:0 1 auto;margin:0;}',
+      '.mw-chart-section-count{flex:0 0 auto;font-size:12px;font-weight:500;color:var(--dsw-alias-label-secondary);}',
+      '.mw-chart-section-chevron{flex:0 0 auto;width:14px;height:14px;margin-left:auto;color:var(--dsw-alias-label-tertiary);transition:transform .18s ease;}',
+      '.mw-chart-section[data-open="false"] .mw-chart-section-chevron{transform:rotate(-90deg);}',
+      '.mw-chart-section-head:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;border-radius:6px;}',
       '.mw-chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:0 0 8px;}',
       '.mw-chart-card{display:flex;flex-direction:column;padding:0;border:0.5px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;cursor:pointer;text-align:left;transition:border-color .15s ease,background-color .15s ease,transform .15s ease;}',
       '.mw-chart-card:hover{border-color:var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);transform:translateY(-2px);}',
       '.mw-chart-card:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
       '.mw-chart-cover{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:16/7;overflow:hidden;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-tertiary);}',
       '.mw-chart-cover img{width:100%;height:100%;object-fit:cover;}',
+      '.mw-chart-cover-empty{aspect-ratio:auto;height:86px;background:linear-gradient(135deg,var(--dsw-alias-bg-layer-2),var(--dsw-alias-bg-layer-1));border-bottom:1px solid var(--dsw-alias-bg-layer-2);}',
       '.mw-chart-body{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px;}',
       '.mw-chart-title{font-size:14px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary);}',
       '.mw-chart-desc{margin:0;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
@@ -1234,13 +1297,43 @@ window.__ModuleLoader__.load({
     function ChartCard(props) {
       const t = props.t
       const chart = props.chart
-      const cover = chart.cover ? posterUrl(chart.cover) : ''
+      const initialCover = chart.cover
+        ? posterUrl(chart.cover)
+        : posterUrl(chartCoverCache.get(chart.id) || '')
+      const [cover, setCover] = useState(initialCover)
+      const coverRef = useRef(null)
+      const coverWanted = !chart.cover && !chartCoverCache.get(chart.id)
+      useEffect(() => {
+        if (!coverWanted) return undefined
+        const node = coverRef.current
+        let cancelled = false
+        const load = () => {
+          chartCoverFor(chart.id).then(url => {
+            if (!cancelled && url) setCover(posterUrl(url))
+          })
+        }
+        if (!node || typeof IntersectionObserver !== 'function') {
+          load()
+          return () => { cancelled = true }
+        }
+        const observer = new IntersectionObserver(entries => {
+          if (entries.some(entry => entry.isIntersecting)) {
+            observer.disconnect()
+            load()
+          }
+        }, { rootMargin: '160px 0px' })
+        observer.observe(node)
+        return () => {
+          cancelled = true
+          observer.disconnect()
+        }
+      }, [chart.id, coverWanted])
       return h(
         'button',
-        { type: 'button', className: 'mw-chart-card', onClick: () => props.onOpen(chart) },
+        { type: 'button', className: 'mw-chart-card', onClick: () => props.onOpen(chart), ref: coverRef },
         h(
           'div',
-          { className: 'mw-chart-cover' },
+          { className: cover ? 'mw-chart-cover' : 'mw-chart-cover mw-chart-cover-empty' },
           cover
             ? h('img', {
               src: cover,
@@ -1249,7 +1342,7 @@ window.__ModuleLoader__.load({
               decoding: 'async',
               referrerPolicy: 'no-referrer',
             })
-            : h(GlyphClapper, { size: 26 }),
+            : h(GlyphClapper, { size: 22 }),
         ),
         h(
           'div',
@@ -1266,12 +1359,12 @@ window.__ModuleLoader__.load({
       )
     }
 
-    const CHART_FAMILIES = ['official', 'rating', 'heat']
+    const CHART_FAMILIES = ['official', 'annual', 'rating', 'heat', 'hidden']
 
     /**
-     * Group the chart catalog into its display sections. Official (subject
-     * collection) charts come first, then the generated 高分经典 / 近期热门
-     * genre charts; a catalog without `family` falls back to one untitled grid.
+     * Group the chart catalog into its display sections in display order:
+     * 官方榜单, 年度榜单, 高分经典 (genre rating), 近期热门 (genre heat) and
+     * 冷门佳作. A catalog without `family` falls back to one untitled grid.
      */
     function chartSections(t, charts) {
       const groups = new Map()
@@ -1294,6 +1387,46 @@ window.__ModuleLoader__.load({
         })
       }
       return sections
+    }
+
+    /**
+     * One collapsible chart section: its heading doubles as a toggle button so
+     * long catalogs stay navigable. Expanded by default; collapsing keeps the
+     * charts mounted nowhere (the cards are simply not rendered).
+     */
+    function ChartSection(props) {
+      const t = props.t
+      const section = props.section
+      const [open, setOpen] = useState(true)
+      const charts = section.charts
+      return h(
+        'section',
+        { className: 'mw-chart-section', 'data-open': open ? 'true' : 'false' },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'mw-chart-section-head',
+            'aria-expanded': open ? 'true' : 'false',
+            onClick: () => setOpen(value => !value),
+          },
+          section.title ? h('span', { className: 'mw-chart-section-title' }, section.title) : null,
+          h('span', { className: 'mw-chart-section-count' }, charts.length),
+          h('span', { className: 'mw-chart-section-chevron' }, h(GlyphChevronDown, null)),
+        ),
+        open
+          ? h(
+            'div',
+            { className: 'mw-chart-grid' },
+            charts.map(chart => h(ChartCard, {
+              key: chart.id,
+              t: t,
+              chart: chart,
+              onOpen: props.onOpenChart,
+            })),
+          )
+          : null,
+      )
     }
 
     /** The 片单 tab: official charts as cards, with loading/error/empty states. */
@@ -1320,21 +1453,12 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         null,
-        chartSections(t, charts).map(section => h(
-          'section',
-          { key: section.key, className: 'mw-chart-section' },
-          section.title ? h('h3', { className: 'mw-chart-section-title' }, section.title) : null,
-          h(
-            'div',
-            { className: 'mw-chart-grid' },
-            section.charts.map(chart => h(ChartCard, {
-              key: chart.id,
-              t: t,
-              chart: chart,
-              onOpen: props.onOpenChart,
-            })),
-          ),
-        )),
+        chartSections(t, charts).map(section => h(ChartSection, {
+          key: section.key,
+          t: t,
+          section: section,
+          onOpenChart: props.onOpenChart,
+        })),
         partialFailure
           ? h(
             'div',

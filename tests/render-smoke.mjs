@@ -361,6 +361,24 @@ const LISTS = {
       family: 'official',
     },
     {
+      id: 'year:2025:U',
+      title: '2025 年度热门',
+      subtitle: '年度片单',
+      description: '按年份筛选的豆瓣高分电影',
+      total: null,
+      cover: null,
+      family: 'annual',
+    },
+    {
+      id: 'hidden:动作',
+      title: '冷门佳作 · 动作',
+      subtitle: '冷门佳片',
+      description: '按豆瓣评分优先',
+      total: null,
+      cover: null,
+      family: 'hidden',
+    },
+    {
       id: 'genre:喜剧:S',
       title: '高分经典喜剧片',
       subtitle: '分类榜单',
@@ -402,14 +420,27 @@ const listsChannelHtml = renderState('channel (lists)', `{ source: 'all', draft:
   ['mw-chart-desc', 'chart description'],
   ['共 250 部', 'chart total copy'],
   ['mw-chart-cover', 'chart cover block'],
+  ['mw-chart-cover-empty', 'coverless charts use a compact cover'],
   ['官方榜单', 'official chart section heading'],
-  ['高分经典', 'high-score chart section heading'],
+  ['年度榜单', 'annual chart section heading'],
+  ['2025 年度热门', 'annual chart card'],
+  ['冷门佳作', 'hidden gem chart section heading'],
+  ['冷门佳作 · 动作', 'hidden gem chart card'],
+  ['高分经典', 'genre classics chart section heading'],
+  ['近期热门', 'recent-hits chart section heading'],
   ['近期热门动作片', 'recent-hit genre chart card'],
+  ['class="mw-chart-section-head"', 'collapsible section toggle'],
+  ['aria-expanded="true"', 'chart sections start expanded'],
+  ['mw-chart-section-chevron', 'chart section chevron'],
   ['mw-chart-section-title', 'chart section title styling'],
 ])
 assert.ok(!listsChannelHtml.includes('加载更多'), 'lists tab has no infinite-scroll footer')
 assert.ok(listsChannelHtml.includes('class="mw-chart-grid"'), 'lists tab renders the chart card grid')
-assert.strictEqual((listsChannelHtml.match(/class="mw-chart-grid"/g) || []).length, 3, 'lists tab groups charts into three sections')
+assert.strictEqual((listsChannelHtml.match(/class="mw-chart-grid"/g) || []).length, 5, 'lists tab groups charts into five sections')
+assert.strictEqual((listsChannelHtml.match(/class="mw-chart-section-head"/g) || []).length, 5, 'every chart section has a collapse toggle')
+const sectionOrder = ['官方榜单', '年度榜单', '高分经典', '近期热门', '冷门佳作'].map(title => listsChannelHtml.indexOf(title))
+assert.deepStrictEqual(sectionOrder, [...sectionOrder].sort((a, b) => a - b), 'chart sections follow the official / annual / classics / recent / hidden order')
+assert.ok(sectionOrder.every(index => index >= 0), 'all five section headings are present')
 
 const RANKED = [
   { ...ITEMS[2], rank: 1, subtitle: '1994 / 美国 / 剧情 犯罪' },

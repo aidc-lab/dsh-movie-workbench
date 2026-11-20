@@ -594,3 +594,54 @@ Generated charts use Douban's mobile recommendation list filtered by genre tag:
 Rows are fetched per request (no cache). The 分类排行榜 web page
 (`movie.douban.com/chart`, `/typerank`) is not used directly because it only
 exposes the `100:90` interval and has no high-score/recent split.
+
+## DouBan 冷门佳作 and 年度榜单 charts (v1.10)
+
+`/charts` now returns **97** entries in this order: the six official charts
+(`family: "official"`), ten annual charts (`family: "annual"`), 27 hidden-gem
+charts (`family: "hidden"`, one per genre) and the 54 genre charts
+(`family: "rating"` / `"heat"`, section title 分类题材). `/chart` accepts their ids with the same
+validation, envelope and row shape as v1.8/v1.9.
+
+Generated ids:
+
+```json
+{ "id": "year:2025:S", "title": "2025 年度高分", "subtitle": "年度片单",
+  "family": "annual", "description": "按豆瓣评分优先", "total": null, "cover": null }
+{ "id": "year:2025:U", "title": "2025 年度热门", "family": "annual" }
+{ "id": "hidden:动作", "title": "冷门佳作 · 动作", "subtitle": "冷门佳片",
+  "family": "hidden", "description": "评分优先的冷门佳片", "total": null, "cover": null }
+```
+
+Annual years are allowlisted to `[2025, 2024, 2023, 2022, 2021]` (newest first)
+and expose both families: `S` (年度高分) and `U` (年度热门). An unknown year or
+sort is `400 bad_chart`. Hidden charts take `hidden:<genre>` with one of the 27
+allowlisted genres and always sort by rating (`S`); another genre is
+`400 bad_chart`. Rows
+carry `rank: null`, `total` is capped at `500` (冷门佳片 currently reports 494),
+and the first page may drop one announcement card as described in v1.9.
+
+The Lists tab groups the catalog into five collapsible sections in this display
+order: 官方榜单, 年度榜单, 高分经典, 近期热门, 冷门佳作.
+
+Official-chart rows expose the poster as `cover_url`; rows from the recommend
+feed (annual / hidden / genre) carry only `pic.large` / `pic.normal`, which the
+Host maps to the same `poster` field. Generated charts have no catalog cover of
+their own, so their cards lazily request the first page of that chart
+(`count=3`, because genre charts prepend an announcement card that the Host
+filters out) and use the first title that has a `poster` as the card cover
+(cached per session, at most 4 concurrent requests, compact placeholder until
+loaded).
+
+### Upstream
+
+All three generated families share one endpoint — the mobile movie
+recommendation list filtered by a tag:
+
+- genre charts: `tags=<genre>` (e.g. `喜剧`)
+- hidden gems: `tags=冷门佳片,<genre>` (comma-separated AND filter)
+- annual: `tags=<yyyy>` (e.g. `2025`)
+
+`GET https://m.douban.com/rexxar/api/v2/movie/recommend?refresh=0&start=&count=&selected_categories=%7B%7D&uncollect=false&tags=<tag>&sort=<S|U>`
+with a `https://m.douban.com/movie/` Referer. Rows are movies only (DouBan's
+`tv` domain has a separate endpoint that is not used here).

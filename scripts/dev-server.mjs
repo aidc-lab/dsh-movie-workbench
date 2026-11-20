@@ -840,19 +840,23 @@ async function main() {
     const chartList = Array.isArray(charts.body?.charts) ? charts.body.charts : []
     const officialCharts = chartList.filter((chart) => chart.family === 'official')
     const genreCharts = chartList.filter((chart) => chart.family === 'rating' || chart.family === 'heat')
+    const hiddenCharts = chartList.filter((chart) => chart.family === 'hidden')
+    const annualCharts = chartList.filter((chart) => chart.family === 'annual')
     check(
-      'GET /charts?source=douban -> the six official charts plus 54 genre charts',
+      'GET /charts?source=douban -> the official, annual, hidden and genre charts',
       charts.response.status === 200 &&
         charts.body?.ok === true &&
         charts.body?.source === 'douban' &&
-        chartList.length === 60 &&
+        chartList.length === 97 &&
         officialCharts.length === 6 &&
         officialCharts.map((chart) => chart.id).join(',') ===
           'movie_top250,movie_weekly_best,movie_real_time_hotest,tv_real_time_hotest,tv_chinese_best_weekly,tv_global_best_weekly' &&
         genreCharts.length === 54 &&
+        hiddenCharts.length === 27 &&
+        annualCharts.length === 10 &&
         chartList.every((chart) => typeof chart.title === 'string' && chart.title.length > 0 && typeof chart.family === 'string') &&
         Array.isArray(charts.body?.errors),
-      `HTTP ${charts.response.status}, charts=${chartList.length}, official=${officialCharts.length}, genre=${genreCharts.length}`,
+      `HTTP ${charts.response.status}, charts=${chartList.length}, official=${officialCharts.length}, genre=${genreCharts.length}, hidden=${hiddenCharts.length}, annual=${annualCharts.length}`,
     )
     const comedyChart = chartList.find((chart) => chart.id === 'genre:喜剧:S')
     const actionChart = chartList.find((chart) => chart.id === 'genre:动作:U')
@@ -870,6 +874,20 @@ async function main() {
         rating: genreCharts.filter((chart) => chart.family === 'rating').length,
         heat: genreCharts.filter((chart) => chart.family === 'heat').length,
       }),
+    )
+    const hiddenHigh = chartList.find((chart) => chart.id === 'hidden:动作')
+    const annualYear = chartList.find((chart) => chart.id === 'year:2025:S')
+    check(
+      'hidden gems and annual charts are listed with their own titles',
+      hiddenHigh?.title === '冷门佳作 · 动作' &&
+        hiddenHigh?.subtitle === '冷门佳片' &&
+        hiddenHigh?.family === 'hidden' &&
+        annualYear?.title === '2025 年度高分' &&
+        annualYear?.subtitle === '年度片单' &&
+        annualYear?.family === 'annual' &&
+        annualCharts.map((chart) => chart.id).join(',') ===
+          'year:2025:S,year:2025:U,year:2024:S,year:2024:U,year:2023:S,year:2023:U,year:2022:S,year:2022:U,year:2021:S,year:2021:U',
+      JSON.stringify({ hidden: hiddenHigh?.title, annual: annualYear?.title }),
     )
     check(
       'chart metadata carries a cover, a description and a total',
@@ -967,6 +985,50 @@ async function main() {
         comedyGenreChart.body.items.every(isNormalizedResult),
       `HTTP ${comedyGenreChart.response.status}, rows=${comedyGenreChart.body?.items?.length}`,
     )
+    const hiddenPage = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('hidden:动作')}&start=0&count=5`,
+    )
+    const hiddenRows = Array.isArray(hiddenPage.body?.items) ? hiddenPage.body.items : []
+    check(
+      'GET /chart hidden:动作 -> cold-gem rows with a capped total',
+      hiddenPage.response.status === 200 &&
+        hiddenPage.body?.ok === true &&
+        hiddenPage.body?.id === 'hidden:动作' &&
+        Number.isInteger(hiddenPage.body?.total) &&
+        hiddenPage.body.total <= 500 &&
+        hiddenPage.body?.hasMore === true &&
+        hiddenRows.length >= 4 &&
+        hiddenRows.length <= 5 &&
+        hiddenRows.every(isNormalizedResult) &&
+        hiddenRows.every((row) => row.source === 'douban' && row.rank === null),
+      `HTTP ${hiddenPage.response.status}, rows=${hiddenRows.length}, total=${hiddenPage.body?.total}`,
+    )
+    const annualPage = await getJson(
+      `${api}/chart?source=douban&id=year:2025%3AU&start=0&count=5`,
+    )
+    const annualRows = Array.isArray(annualPage.body?.items) ? annualPage.body.items : []
+    check(
+      'GET /chart year:2025:U -> annual rows with a capped total',
+      annualPage.response.status === 200 &&
+        annualPage.body?.ok === true &&
+        annualPage.body?.id === 'year:2025:U' &&
+        Number.isInteger(annualPage.body?.total) &&
+        annualPage.body.total <= 500 &&
+        annualRows.length >= 4 &&
+        annualRows.length <= 5 &&
+        annualRows.every(isNormalizedResult) &&
+        annualRows.every((row) => typeof row.poster === 'string' && row.poster.startsWith('https://')) &&
+        annualRows.filter((row) => row.year === 2025).length >= 3,
+      `HTTP ${annualPage.response.status}, rows=${annualRows.length}, total=${annualPage.body?.total}, years=${[...new Set(annualRows.map((row) => row.year))].join(',')}`,
+    )
+    const badYearChart = await getJson(
+      `${api}/chart?source=douban&id=year:1999%3AS`,
+    )
+    check(
+      'chart unknown annual year -> 400 bad_chart',
+      badYearChart.response.status === 400 && badYearChart.body?.code === 'bad_chart',
+      `HTTP ${badYearChart.response.status}`,
+    )
     const badGenreChart = await getJson(
       `${api}/chart?source=douban&id=${encodeURIComponent('genre:不存在:U')}`,
     )
@@ -976,6 +1038,14 @@ async function main() {
       `HTTP ${badGenreChart.response.status}`,
     )
 
+    const badHiddenChart = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('hidden:不存在')}`,
+    )
+    check(
+      'chart unknown hidden-gem genre -> 400 bad_chart',
+      badHiddenChart.response.status === 400 && badHiddenChart.body?.code === 'bad_chart',
+      `HTTP ${badHiddenChart.response.status}`,
+    )
     const chartBadId = await getJson(`${api}/chart?source=douban&id=nope`)
     check(
       'chart unsupported id -> 400 bad_chart',
