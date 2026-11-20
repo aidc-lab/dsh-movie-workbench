@@ -148,7 +148,7 @@ function readZhDictionary(sourceText) {
   const match = /const ZH = \{([\s\S]*?)\n    \}/.exec(sourceText)
   assert.ok(match, 'ZH dictionary found')
   const dict = {}
-  for (const entry of match[1].matchAll(/(?:'([a-zA-Z0-9_.]+)'|([a-zA-Z0-9_]+)):\s*'([^']*)'/g)) {
+  for (const entry of match[1].matchAll(/(?:'([a-zA-Z0-9_.-]+)'|([a-zA-Z0-9_]+)):\s*'([^']*)'/g)) {
     dict[entry[1] || entry[2]] = entry[3]
   }
   return dict
@@ -400,20 +400,64 @@ const LISTS = {
   errors: [],
   failure: null,
 }
+const TV_LISTS = {
+  status: 'done',
+  charts: [
+    {
+      id: 'tv_real_time_hotest',
+      title: '实时热门电视',
+      subtitle: '豆瓣榜单',
+      description: '此刻最多人在看的剧集。',
+      total: 10,
+      cover: 'https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2936346968.jpg',
+      family: 'official',
+    },
+    {
+      id: 'tv-year:2025:U',
+      title: '2025 年度热门',
+      subtitle: '年度片单',
+      description: '按年份筛选的豆瓣高分剧集',
+      total: null,
+      cover: null,
+      family: 'annual',
+    },
+    {
+      id: 'tv-genre:悬疑:S',
+      title: '高分经典悬疑剧',
+      subtitle: '分类榜单',
+      description: '按豆瓣评分优先',
+      total: null,
+      cover: null,
+      family: 'rating',
+    },
+    {
+      id: 'tv-genre:悬疑:U',
+      title: '近期热门悬疑剧',
+      subtitle: '分类榜单',
+      description: '按近期热度优先',
+      total: null,
+      cover: null,
+      family: 'heat',
+    },
+  ],
+  errors: [],
+  failure: null,
+}
+
 const LISTS_CHANNEL = {
   source: 'douban',
-  category: 'lists',
-  categories: ['popular', 'movie', 'tv', 'lists'],
+  category: 'movie-lists',
+  categories: ['popular', 'movie', 'tv', 'movie-lists', 'tv-lists'],
   status: 'done',
   items: [],
   failure: null,
   page: 1,
   hasMore: false,
 }
-const listsChannelHtml = renderState('channel (lists)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, channels: {} }`, [
+const listsChannelHtml = renderState('channel (lists)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify({ movie: LISTS, tv: TV_LISTS })}, channels: {} }`, [
   ['data-view="channel"', 'lists tab uses the channel view'],
-  ['豆瓣 · 片单', 'lists tab heading'],
-  ['片单', 'lists tab label'],
+  ['豆瓣 · 电影榜单', 'movie lists tab heading'],
+  ['电影榜单', 'movie lists tab label'],
   ['class="mw-chart-grid"', 'chart card grid'],
   ['mw-chart-card', 'chart cards'],
   ['豆瓣电影 Top250', 'chart title'],
@@ -442,6 +486,32 @@ const sectionOrder = ['官方榜单', '年度榜单', '高分经典', '近期热
 assert.deepStrictEqual(sectionOrder, [...sectionOrder].sort((a, b) => a - b), 'chart sections follow the official / annual / classics / recent / hidden order')
 assert.ok(sectionOrder.every(index => index >= 0), 'all five section headings are present')
 
+const TV_LISTS_CHANNEL = {
+  source: 'douban',
+  category: 'tv-lists',
+  categories: ['popular', 'movie', 'tv', 'movie-lists', 'tv-lists'],
+  status: 'done',
+  items: [],
+  failure: null,
+  page: 1,
+  hasMore: false,
+}
+const tvListsChannelHtml = renderState('channel (tv lists)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(TV_LISTS_CHANNEL)}, lists: ${JSON.stringify({ movie: LISTS, tv: TV_LISTS })}, channels: {} }`, [
+  ['data-view="channel"', 'TV lists tab uses the channel view'],
+  ['豆瓣 · 剧集榜单', 'TV lists tab heading'],
+  ['剧集榜单', 'TV lists tab label'],
+  ['class="mw-chart-grid"', 'TV chart card grid'],
+  ['实时热门电视', 'TV official chart title'],
+  ['2025 年度热门', 'TV annual chart card'],
+  ['高分经典悬疑剧', 'TV genre classics chart'],
+  ['近期热门悬疑剧', 'TV recent-hits chart'],
+  ['官方榜单', 'TV official section heading'],
+  ['class="mw-chart-section-head"', 'TV chart section toggle'],
+])
+assert.ok(!tvListsChannelHtml.includes('冷门佳作'), 'TV lists have no hidden-gems section')
+assert.strictEqual((tvListsChannelHtml.match(/class="mw-chart-grid"/g) || []).length, 4, 'TV lists render four sections')
+assert.strictEqual((tvListsChannelHtml.match(/class="mw-chart-section-head"/g) || []).length, 4, 'every TV chart section has a collapse toggle')
+
 const RANKED = [
   { ...ITEMS[2], rank: 1, subtitle: '1994 / 美国 / 剧情 犯罪' },
   { ...ITEMS[1], rank: 2, subtitle: '2010 / 美国 / 科幻' },
@@ -462,7 +532,7 @@ const chartView = {
   total: 250,
   hasMore: true,
 }
-const chartHtml = renderState('chart', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, chartView: ${JSON.stringify(chartView)}, channels: {} }`, [
+const chartHtml = renderState('chart', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify({ movie: LISTS, tv: TV_LISTS })}, chartView: ${JSON.stringify(chartView)}, channels: {} }`, [
   ['data-view="chart"', 'chart page container'],
   ['返回片单', 'chart back label'],
   ['豆瓣电影 Top250', 'chart heading'],
@@ -476,7 +546,7 @@ const chartHtml = renderState('chart', `{ source: 'all', draft: '', data: null, 
 assert.ok(!chartHtml.includes('部作品'), 'chart page hides the result count copy')
 
 const chartEndView = { ...chartView, hasMore: false }
-const chartEndHtml = renderState('chart (end)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, chartView: ${JSON.stringify(chartEndView)}, channels: {} }`, [
+const chartEndHtml = renderState('chart (end)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify({ movie: LISTS, tv: TV_LISTS })}, chartView: ${JSON.stringify(chartEndView)}, channels: {} }`, [
   ['没有更多了', 'chart end copy'],
   ['#2', 'second rank label'],
 ])
@@ -599,6 +669,7 @@ console.log('  idle partial :', partialHtml.length, 'chars')
 console.log('  idle failed  :', failedHtml.length, 'chars')
 console.log('  channel      :', channelHtml.length, 'chars')
 console.log('  channel lists:', listsChannelHtml.length, 'chars')
+console.log('  channel tv lists:', tvListsChannelHtml.length, 'chars')
 console.log('  chart        :', chartHtml.length, 'chars')
 console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')

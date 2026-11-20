@@ -12,12 +12,13 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 - **Film & TV search** — results grouped by channel, with posters, years, ratings and source links.
 - **Trending** — each channel's popular movies and TV series on the home page; the row length follows the panel width so every channel fills exactly two rows, and it re-requests on resize.
 - **Channel browse** — open any channel for its own page with category tabs (TMDB: This week /
-  Movies / TV; IMDb: Featured / Movies / TV; DouBan: Popular / Movies / TV) and infinite scroll for
-  the next pages.
-- **DouBan lists (片单)** — DouBan's channel page also has a Lists tab with five collapsible
-  sections: 官方榜单, 年度榜单 (2025–2021, high-score and recent-hit variants), 高分经典 and
-  近期热门 for 27 genres, and 冷门佳作 for each genre. Sections collapse from their headings,
-  and generated charts use their first title's poster as the card cover. Open a chart to see the
+  Movies / TV; IMDb: Featured / Movies / TV; DouBan: Popular / Movies / TV / Movie charts /
+  TV charts) and infinite scroll for the next pages.
+- **DouBan charts (榜单)** — DouBan's channel page has two separate chart tabs, 电影榜单 and
+  剧集榜单, with collapsible sections. Movie lists group 官方榜单, 年度榜单 (2025–2021,
+  high-score and recent-hit variants), 高分经典 and 近期热门 for 27 genres, and 冷门佳作 for
+  each genre; TV lists group 官方榜单, 年度榜单 and 高分经典 / 近期热门 for the same genres.
+  Generated charts use their first title's poster as the card cover. Open a chart to see the
   ranked titles with the same paged infinite scroll.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads; copy the magnet
   link or open the source page.
@@ -61,8 +62,8 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /search?q=&source=&lang=` | dispatch to the selected channels and return normalized results |
 | `GET /trending?source=&lang=&limit=` | recommendation rows, or a longer list for one channel |
 | `GET /browse?source=&category=&page=&cursor=&lang=` | one page (20 items) of a channel browse category; returns `hasMore` and, for IMDb, an opaque `next` cursor for infinite scroll |
-| `GET /charts?source=douban` | the DouBan chart catalog for the Lists tab: 6 official charts with live metadata, 10 annual charts (高分/热门 for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (97 total) |
-| `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, or `genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
+| `GET /charts?source=douban&kind=movie\|tv` | one chart catalog: `movie` (default) has 3 official charts with live metadata, 10 annual charts (高分/热门 for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (94 total); `tv` has 3 official, 10 annual and 54 genre charts (67 total, no hidden gems) |
+| `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, `genre:<genre>:<S or U>`, or the TV forms `tv-year:<yyyy>:<S or U>` / `tv-genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
 | `GET /detail?source=douban&id=` | synopsis and metadata for a DouBan title |
 | `GET /torrents?q=&alt=&source=&limit=` | BT resource search |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |

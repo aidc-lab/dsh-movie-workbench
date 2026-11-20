@@ -39,10 +39,19 @@ window.__ModuleLoader__.load({
       douban: ['popular', 'movie', 'tv'],
     }
 
-    /* Douban's official charts live behind a client-only tab; the Host serves
-       them from /charts and /chart rather than /browse (contract v1.8). */
-    const DOUBAN_LISTS = 'lists'
+    /* Douban's official charts live behind two client-only tabs; the Host
+       serves them from /charts and /chart rather than /browse (contract v1.11).
+       Each tab asks for one chart kind: movie lists or TV lists. */
+    const DOUBAN_MOVIE_LISTS = 'movie-lists'
+    const DOUBAN_TV_LISTS = 'tv-lists'
     const CHART_PAGE_SIZE = 20
+
+    /** Chart kind a lists tab loads; null for an ordinary browse tab. */
+    function listsKindFor(category) {
+      if (category === DOUBAN_MOVIE_LISTS) return 'movie'
+      if (category === DOUBAN_TV_LISTS) return 'tv'
+      return null
+    }
 
     const RECOMMENDATION_CARD_MIN_WIDTH = 148
     const RECOMMENDATION_CARD_GAP = 16
@@ -70,11 +79,11 @@ window.__ModuleLoader__.load({
       return BROWSE_CATEGORIES[source] || []
     }
 
-    /** Tabs a channel page shows: its browse categories plus Douban's 片单. */
+    /** Tabs a channel page shows: its browse categories plus Douban's two lists. */
     function channelCategoryTabs(source) {
       const categories = channelCategories(source)
       if (source !== 'douban') return categories
-      return categories.concat([DOUBAN_LISTS])
+      return categories.concat([DOUBAN_MOVIE_LISTS, DOUBAN_TV_LISTS])
     }
 
     /** Cache key for one channel category inside `session.channels`. */
@@ -123,7 +132,8 @@ window.__ModuleLoader__.load({
       'browse.loadingMore': '正在加载…',
       'browse.end': '没有更多了',
       'browse.moreFailed': '加载更多失败',
-      'browse.lists': '片单',
+      'browse.movie-lists': '电影榜单',
+      'browse.tv-lists': '剧集榜单',
       'lists.official': '官方榜单',
       'lists.annual': '年度榜单',
       'lists.hidden': '冷门佳作',
@@ -238,7 +248,8 @@ window.__ModuleLoader__.load({
       'browse.loadingMore': 'Loading more…',
       'browse.end': 'No more titles',
       'browse.moreFailed': 'Could not load more',
-      'browse.lists': 'Lists',
+      'browse.movie-lists': 'Movie charts',
+      'browse.tv-lists': 'TV charts',
       'lists.official': 'Official charts',
       'lists.annual': 'Annual',
       'lists.hidden': 'Hidden gems',
@@ -1154,7 +1165,8 @@ window.__ModuleLoader__.load({
       const items = Array.isArray(state.items) ? state.items : []
       const loadingMore = Boolean(props.loadingMore)
       const hasMore = Boolean(state.hasMore)
-      const listsActive = activeCategory === DOUBAN_LISTS
+      const listsKind = listsKindFor(activeCategory)
+      const listsActive = Boolean(listsKind)
       const backRef = useRef(null)
       const sentinelRef = useRef(null)
 
@@ -1177,7 +1189,8 @@ window.__ModuleLoader__.load({
       if (listsActive) {
         body = h(ChartGrid, {
           t: t,
-          state: props.lists,
+          kind: listsKind,
+          state: props.lists ? props.lists[listsKind] : null,
           onOpenChart: props.onOpenChart,
           onRetry: props.onRetryLists,
         })
@@ -1422,7 +1435,7 @@ window.__ModuleLoader__.load({
               key: chart.id,
               t: t,
               chart: chart,
-              onOpen: props.onOpenChart,
+              onOpen: chart => props.onOpenChart(chart, props.kind),
             })),
           )
           : null,
@@ -2112,7 +2125,7 @@ window.__ModuleLoader__.load({
       suggestions: null,
       channel: null,
       channels: {},
-      lists: null,
+      lists: { movie: null, tv: null },
       chartView: null,
       torrents: {},
       details: {},
@@ -2133,7 +2146,7 @@ window.__ModuleLoader__.load({
       const [selectedItem, setSelectedItem] = useState(session.selectedItem)
       const [suggestions, setSuggestions] = useState(session.suggestions)
       const [channel, setChannel] = useState(session.channel)
-      const [lists, setLists] = useState(session.lists)
+      const [lists, setLists] = useState(session.lists || { movie: null, tv: null })
       const [chartView, setChartView] = useState(session.chartView)
       const [loadingMore, setLoadingMore] = useState(false)
       const [moreFailure, setMoreFailure] = useState(null)
@@ -2414,10 +2427,11 @@ window.__ModuleLoader__.load({
         moreRef.current = false
         setLoadingMore(false)
         setMoreFailure(null)
-        if (category === DOUBAN_LISTS) {
+        const listsKind = listsKindFor(category)
+        if (listsKind) {
           const view = {
             source: channelSource,
-            category: DOUBAN_LISTS,
+            category: category,
             categories: channelCategoryTabs(channelSource),
             status: 'done',
             items: [],
@@ -2430,7 +2444,7 @@ window.__ModuleLoader__.load({
           session.channel = view
           setChartView(null)
           session.chartView = null
-          void loadCharts(false)
+          void loadCharts(listsKind, false)
           return
         }
         const key = channelCacheKey(channelSource, category)
@@ -2591,47 +2605,54 @@ window.__ModuleLoader__.load({
         }
       }
 
-      /** Load the Douban official-chart list for the 片单 tab. */
-      async function loadCharts(force) {
-        if (!force && session.lists && session.lists.status === 'done') {
-          setLists(session.lists)
+      /** Store one lists tab's state in the session cache and React state. */
+      function storeLists(kind, value) {
+        const next = Object.assign({ movie: null, tv: null }, session.lists || {}, { [kind]: value })
+        session.lists = next
+        setLists(next)
+      }
+
+      /** Load the chart catalog of one kind (movie or TV lists). */
+      async function loadCharts(kind, force) {
+        const cached = session.lists ? session.lists[kind] : null
+        if (!force && cached && cached.status === 'done') {
+          setLists(Object.assign({ movie: null, tv: null }, session.lists))
           return
         }
-        const loading = { status: 'loading', charts: [], errors: [], failure: null }
-        setLists(loading)
-        session.lists = loading
+        const loading = { status: 'loading', kind: kind, charts: [], errors: [], failure: null }
+        storeLists(kind, loading)
         try {
-          const body = await callApi('/charts?source=douban')
+          const body = await callApi('/charts?source=douban&kind=' + kind)
           const charts = Array.isArray(body.charts) ? body.charts : []
           const errors = Array.isArray(body.errors) ? body.errors : []
           const done = {
             status: 'done',
+            kind: kind,
             charts: charts,
             errors: errors,
             failure: errors.length > 0 ? (errors[0].code || 'upstream_error') : null,
           }
-          setLists(done)
-          session.lists = done
+          storeLists(kind, done)
         } catch (error) {
           const failed = {
             status: 'error',
+            kind: kind,
             charts: [],
             errors: [],
             failure: error && error.code ? error.code : 'network',
           }
-          setLists(failed)
-          session.lists = failed
+          storeLists(kind, failed)
         }
       }
 
-      /** Open one official chart and load its first page of ranked titles. */
-      function openChart(chart) {
+      /** Open one chart and load its first page of ranked titles. */
+      function openChart(chart, kind) {
         if (!chart || !chart.id) return
-        void loadChartItems(chart, 0, false)
+        void loadChartItems(chart, kind || 'movie', 0, false)
       }
 
       /** Load one range of a chart; `append` merges the next page in place. */
-      async function loadChartItems(chart, start, append) {
+      async function loadChartItems(chart, kind, start, append) {
         if (append) {
           if (chartMoreRef.current) return
           chartMoreRef.current = true
@@ -2644,6 +2665,7 @@ window.__ModuleLoader__.load({
         if (!append) {
           const loading = {
             chart: chart,
+            kind: kind,
             status: 'loading',
             items: [],
             failure: null,
@@ -2683,6 +2705,7 @@ window.__ModuleLoader__.load({
           } else {
             const view = {
               chart: chart,
+              kind: kind,
               status: 'done',
               items: items,
               failure: failure,
@@ -2700,6 +2723,7 @@ window.__ModuleLoader__.load({
           } else {
             const failed = {
               chart: chart,
+              kind: kind,
               status: 'error',
               items: [],
               failure: code,
@@ -2721,14 +2745,14 @@ window.__ModuleLoader__.load({
       function loadMoreChart() {
         const view = chartRef.current
         if (!view || !view.hasMore || chartMoreRef.current) return
-        void loadChartItems(view.chart, (view.items || []).length, true)
+        void loadChartItems(view.chart, view.kind || 'movie', (view.items || []).length, true)
       }
 
       /** Reload the open chart from its first row. */
       function retryChart() {
         const view = chartRef.current
         if (!view || !view.chart) return
-        void loadChartItems(view.chart, 0, false)
+        void loadChartItems(view.chart, view.kind || 'movie', 0, false)
       }
 
       /** Return from a chart to the channel's 片单 tab. */
@@ -2750,8 +2774,9 @@ window.__ModuleLoader__.load({
       /** Clear the open channel's cache and reload its first page. */
       function reloadChannel() {
         if (!channel) return
-        if (channel.category === DOUBAN_LISTS) {
-          void loadCharts(true)
+        const listsKind = listsKindFor(channel.category)
+        if (listsKind) {
+          void loadCharts(listsKind, true)
           return
         }
         const key = channelCacheKey(channel.source, channel.category)
@@ -2762,7 +2787,7 @@ window.__ModuleLoader__.load({
 
       /** Append the next page of the open channel. */
       function loadMoreChannel() {
-        if (!channel || channel.category === DOUBAN_LISTS || !channel.hasMore || moreRef.current) return
+        if (!channel || listsKindFor(channel.category) || !channel.hasMore || moreRef.current) return
         void loadChannel(channel.source, channel.category, (channel.page || 1) + 1)
       }
 

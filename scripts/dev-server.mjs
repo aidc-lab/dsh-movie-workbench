@@ -13,7 +13,7 @@
  *   /trending?source=douban|imdb|all          (v1.1 idle recommendations)
  *   /trending?...&limit=24|abc|0|99           (v1.2 "see all" limit)
  *   /browse?source=douban|imdb|tmdb&category=&page=&cursor=   (v1.7 channel tabs + paging)
- *   /charts?source=douban                      (v1.9 official + genre chart list)
+ *   /charts?source=douban&kind=movie|tv          (v1.11 movie / TV chart lists)
  *   /chart?source=douban&id=&start=&count=     (v1.9 ranked chart titles)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
@@ -843,17 +843,19 @@ async function main() {
     const hiddenCharts = chartList.filter((chart) => chart.family === 'hidden')
     const annualCharts = chartList.filter((chart) => chart.family === 'annual')
     check(
-      'GET /charts?source=douban -> the official, annual, hidden and genre charts',
+      'GET /charts?source=douban -> the movie chart catalog',
       charts.response.status === 200 &&
         charts.body?.ok === true &&
         charts.body?.source === 'douban' &&
-        chartList.length === 97 &&
-        officialCharts.length === 6 &&
+        charts.body?.kind === 'movie' &&
+        chartList.length === 94 &&
+        officialCharts.length === 3 &&
         officialCharts.map((chart) => chart.id).join(',') ===
-          'movie_top250,movie_weekly_best,movie_real_time_hotest,tv_real_time_hotest,tv_chinese_best_weekly,tv_global_best_weekly' &&
+          'movie_top250,movie_weekly_best,movie_real_time_hotest' &&
         genreCharts.length === 54 &&
         hiddenCharts.length === 27 &&
         annualCharts.length === 10 &&
+        chartList.every((chart) => chart.kind === 'movie') &&
         chartList.every((chart) => typeof chart.title === 'string' && chart.title.length > 0 && typeof chart.family === 'string') &&
         Array.isArray(charts.body?.errors),
       `HTTP ${charts.response.status}, charts=${chartList.length}, official=${officialCharts.length}, genre=${genreCharts.length}, hidden=${hiddenCharts.length}, annual=${annualCharts.length}`,
@@ -874,6 +876,28 @@ async function main() {
         rating: genreCharts.filter((chart) => chart.family === 'rating').length,
         heat: genreCharts.filter((chart) => chart.family === 'heat').length,
       }),
+    )
+    const tvCharts = await getJson(`${api}/charts?source=douban&kind=tv`)
+    const tvChartList = Array.isArray(tvCharts.body?.charts) ? tvCharts.body.charts : []
+    const tvOfficial = tvChartList.filter((chart) => chart.family === 'official')
+    const tvGenre = tvChartList.filter((chart) => chart.family === 'rating' || chart.family === 'heat')
+    check(
+      'GET /charts?source=douban&kind=tv -> the TV chart catalog',
+      tvCharts.response.status === 200 &&
+        tvCharts.body?.ok === true &&
+        tvCharts.body?.kind === 'tv' &&
+        tvChartList.length === 67 &&
+        tvOfficial.length === 3 &&
+        tvOfficial.map((chart) => chart.id).join(',') ===
+          'tv_real_time_hotest,tv_chinese_best_weekly,tv_global_best_weekly' &&
+        tvGenre.length === 54 &&
+        tvChartList.filter((chart) => chart.family === 'hidden').length === 0 &&
+        tvChartList.filter((chart) => chart.family === 'annual').length === 10 &&
+        tvChartList.every((chart) => chart.kind === 'tv') &&
+        tvChartList.find((chart) => chart.id === 'tv-genre:悬疑:S')?.title === '高分经典悬疑剧' &&
+        tvChartList.find((chart) => chart.id === 'tv-genre:悬疑:U')?.title === '近期热门悬疑剧' &&
+        tvChartList.find((chart) => chart.id === 'tv-year:2025:U')?.title === '2025 年度热门',
+      `HTTP ${tvCharts.response.status}, charts=${tvChartList.length}, official=${tvOfficial.length}, genre=${tvGenre.length}`,
     )
     const hiddenHigh = chartList.find((chart) => chart.id === 'hidden:动作')
     const annualYear = chartList.find((chart) => chart.id === 'year:2025:S')
@@ -1021,6 +1045,48 @@ async function main() {
         annualRows.filter((row) => row.year === 2025).length >= 3,
       `HTTP ${annualPage.response.status}, rows=${annualRows.length}, total=${annualPage.body?.total}, years=${[...new Set(annualRows.map((row) => row.year))].join(',')}`,
     )
+    const tvGenrePage = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('tv-genre:悬疑:U')}&start=0&count=5`,
+    )
+    const tvGenreRows = Array.isArray(tvGenrePage.body?.items) ? tvGenrePage.body.items : []
+    check(
+      'GET /chart tv-genre:悬疑:U -> TV rows',
+      tvGenrePage.response.status === 200 &&
+        tvGenrePage.body?.ok === true &&
+        tvGenrePage.body?.kind === 'tv' &&
+        tvGenreRows.length >= 4 &&
+        tvGenreRows.length <= 5 &&
+        tvGenreRows.every(isNormalizedResult) &&
+        tvGenreRows.every((row) => row.source === 'douban' && row.kind === 'tv' && row.rank === null),
+      `HTTP ${tvGenrePage.response.status}, rows=${tvGenreRows.length}`,
+    )
+    const tvYearPage = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('tv-year:2025:U')}&start=0&count=5`,
+    )
+    const tvYearRows = Array.isArray(tvYearPage.body?.items) ? tvYearPage.body.items : []
+    check(
+      'GET /chart tv-year:2025:U -> TV annual rows',
+      tvYearPage.response.status === 200 &&
+        tvYearPage.body?.ok === true &&
+        tvYearPage.body?.kind === 'tv' &&
+        tvYearRows.length >= 4 &&
+        tvYearRows.length <= 5 &&
+        tvYearRows.every((row) => row.kind === 'tv'),
+      `HTTP ${tvYearPage.response.status}, rows=${tvYearRows.length}`,
+    )
+    const tvOfficialPage = await getJson(
+      `${api}/chart?source=douban&id=tv_global_best_weekly&start=0&count=5`,
+    )
+    check(
+      'GET /chart tv_global_best_weekly -> ranked TV chart rows',
+      tvOfficialPage.response.status === 200 &&
+        tvOfficialPage.body?.ok === true &&
+        tvOfficialPage.body?.kind === 'tv' &&
+        Array.isArray(tvOfficialPage.body?.items) &&
+        tvOfficialPage.body.items.length === 5 &&
+        tvOfficialPage.body.items.every((row) => row.kind === 'tv'),
+      `HTTP ${tvOfficialPage.response.status}, rows=${tvOfficialPage.body?.items?.length}`,
+    )
     const badYearChart = await getJson(
       `${api}/chart?source=douban&id=year:1999%3AS`,
     )
@@ -1075,6 +1141,12 @@ async function main() {
       'charts source=tmdb -> 400 bad_source',
       chartsBadSource.response.status === 400 && chartsBadSource.body?.code === 'bad_source',
       `HTTP ${chartsBadSource.response.status}`,
+    )
+    const chartsBadKind = await getJson(`${api}/charts?source=douban&kind=all`)
+    check(
+      'charts kind=all -> 400 bad_kind',
+      chartsBadKind.response.status === 400 && chartsBadKind.body?.code === 'bad_kind',
+      `HTTP ${chartsBadKind.response.status}`,
     )
     info(
       'charts sample',

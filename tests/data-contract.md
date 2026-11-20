@@ -645,3 +645,34 @@ recommendation list filtered by a tag:
 `GET https://m.douban.com/rexxar/api/v2/movie/recommend?refresh=0&start=&count=&selected_categories=%7B%7D&uncollect=false&tags=<tag>&sort=<S|U>`
 with a `https://m.douban.com/movie/` Referer. Rows are movies only (DouBan's
 `tv` domain has a separate endpoint that is not used here).
+
+## DouBan movie / TV chart split (v1.11)
+
+The old single 片单 tab is now two tabs on the DouBan channel page:
+
+- **电影榜单** (`movie-lists`) requests `/charts?source=douban&kind=movie`.
+- **剧集榜单** (`tv-lists`) requests `/charts?source=douban&kind=tv`.
+
+`kind` is optional and defaults to `movie`; any other value is
+`400 bad_kind`. The `/charts` response gains a top-level `"kind"` echo and every
+catalog entry carries `kind`. Both catalogs keep the `family` field:
+
+| kind | official | annual | hidden | rating + heat | total |
+| --- | --- | --- | --- | --- | --- |
+| `movie` | 3 | 10 | 27 | 54 | 94 |
+| `tv` | 3 | 10 | 0 | 54 | 67 |
+
+Movie official ids are `movie_top250`, `movie_weekly_best`,
+`movie_real_time_hotest`; TV official ids are `tv_real_time_hotest`,
+`tv_chinese_best_weekly`, `tv_global_best_weekly`. TV generated charts use the
+`tv-` id prefix: `tv-year:<yyyy>:<S|U>` and `tv-genre:<genre>:<S|U>` with titles
+like `2025 年度热门` and `高分经典悬疑剧` / `近期热门悬疑剧`. TV lists have no
+hidden-gems family because DouBan's `冷门佳片,<genre>` tag returns 0–1 TV rows.
+
+`/chart` infers the kind from the id (official id membership first, otherwise
+the parsed id prefix), echoes it as `kind`, and fetches generated TV rows from
+the TV recommendation endpoint:
+
+`GET https://m.douban.com/rexxar/api/v2/tv/recommend?refresh=0&start=&count=&selected_categories=%7B%7D&uncollect=false&tags=<tag>&sort=<S|U>`
+with a `https://m.douban.com/tv/` Referer. Rows are TV series only, paging and
+the 500-row cap behave exactly like the movie feed.
