@@ -1336,8 +1336,11 @@ async function main() {
     const torrents = await getJson(`${api}/torrents?q=${encodeURIComponent('Inception 2010')}&source=all&limit=20`)
     const torrentRows = Array.isArray(torrents.body?.results) ? torrents.body.results : []
     check(
-      'GET /torrents -> 200 ok:true',
-      torrents.response.status === 200 && torrents.body?.ok === true,
+      'GET /torrents -> 200 ok:true (paged envelope)',
+      torrents.response.status === 200 &&
+        torrents.body?.ok === true &&
+        torrents.body?.page === 1 &&
+        typeof torrents.body?.hasMore === 'boolean',
       `HTTP ${torrents.response.status}`,
     )
     check(
@@ -1393,6 +1396,45 @@ async function main() {
         torrentsLimited.body.results.length <= 5,
       `rows=${torrentsLimited.body?.results?.length}`,
     )
+    const torrentsPage2 = await getJson(
+      `${api}/torrents?q=${encodeURIComponent('Inception 2010')}&source=all&limit=20&page=2`,
+    )
+    const torrentRows2 = Array.isArray(torrentsPage2.body?.results) ? torrentsPage2.body.results : []
+    const pageOneIds = new Set(torrentRows.map((row) => row.id))
+    check(
+      'torrents page=2 -> a second normalized page',
+      torrentsPage2.response.status === 200 &&
+        torrentsPage2.body?.ok === true &&
+        torrentsPage2.body?.page === 2 &&
+        typeof torrentsPage2.body?.hasMore === 'boolean' &&
+        torrentRows2.length > 0 &&
+        torrentRows2.every((row) => row.id && row.magnet && row.title),
+      `HTTP ${torrentsPage2.response.status}, rows=${torrentRows2.length}, hasMore=${torrentsPage2.body?.hasMore}`,
+    )
+    check(
+      'torrents page 2 does not repeat page 1 rows',
+      torrentRows2.every((row) => !pageOneIds.has(row.id)),
+      `overlap=${torrentRows2.filter((row) => pageOneIds.has(row.id)).length}`,
+    )
+    const torrentsBt4gPage2 = await getJson(`${api}/torrents?q=Inception&source=bt4g&page=2`)
+    check(
+      'torrents bt4g page=2 -> empty single-page source',
+      torrentsBt4gPage2.response.status === 200 &&
+        torrentsBt4gPage2.body?.ok === true &&
+        torrentsBt4gPage2.body?.page === 2 &&
+        torrentsBt4gPage2.body?.hasMore === false &&
+        Array.isArray(torrentsBt4gPage2.body?.results) &&
+        torrentsBt4gPage2.body.results.length === 0,
+      `HTTP ${torrentsBt4gPage2.response.status}, rows=${torrentsBt4gPage2.body?.results?.length}`,
+    )
+    for (const pageValue of ['0', 'abc', '21']) {
+      const badPage = await getJson(`${api}/torrents?q=Inception&page=${pageValue}`)
+      check(
+        `torrents page=${pageValue} -> 400 bad_page`,
+        badPage.response.status === 400 && badPage.body?.code === 'bad_page',
+        `HTTP ${badPage.response.status}, code=${badPage.body?.code}`,
+      )
+    }
     const torrentsEmpty = await getJson(`${api}/torrents?q=`)
     check(
       'torrents empty q -> 400 empty_query',

@@ -147,6 +147,10 @@ window.__ModuleLoader__.load({
       'torrent.title': 'BT 资源',
       'torrent.note': '来自公开 BT 索引，仅供检索，请自行判断内容合法性',
       'torrent.loading': '正在搜索 BT 资源…',
+      'torrent.loadMore': '加载更多',
+      'torrent.loadingMore': '正在加载…',
+      'torrent.moreFailed': '加载更多失败',
+      'torrent.end': '没有更多了',
       'torrent.empty': '没有找到相关 BT 资源',
       'torrent.failed': 'BT 资源搜索失败',
       'torrent.retry': '重试',
@@ -263,6 +267,10 @@ window.__ModuleLoader__.load({
       'torrent.title': 'BT resources',
       'torrent.note': 'From public torrent indexes; search only — check legality yourself',
       'torrent.loading': 'Searching torrent indexes…',
+      'torrent.loadMore': 'Load more',
+      'torrent.loadingMore': 'Loading more…',
+      'torrent.moreFailed': 'Could not load more',
+      'torrent.end': 'No more results',
       'torrent.empty': 'No BT resources found',
       'torrent.failed': 'Torrent search failed',
       'torrent.retry': 'Retry',
@@ -787,6 +795,8 @@ window.__ModuleLoader__.load({
       '.mw-torrent-copy{cursor:pointer;}',
       '.mw-torrent-loading{display:flex;flex-direction:column;gap:8px;}',
       '.mw-torrent-skeleton{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);}',
+      '.mw-torrent-more{display:flex;justify-content:center;padding:10px 0 2px;}',
+      '.mw-torrent-more-note{margin:10px 0 2px;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);}',
       '.mw-torrent-empty{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);}',
       '.mw-torrent-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}',
       '.mw-torrent-links .mw-btn{height:30px;padding:0 12px;font-size:12px;border-radius:15px;}',
@@ -1628,43 +1638,66 @@ window.__ModuleLoader__.load({
       const [attempt, setAttempt] = useState(0)
       const [copyState, setCopyState] = useState(null)
       const [sort, setSort] = useState({ key: 'default', direction: 'desc' })
+      const [loadingMore, setLoadingMore] = useState(false)
+      const [moreFailure, setMoreFailure] = useState(null)
       const copyTimerRef = useRef(null)
+      const moreRef = useRef(null)
+      const moreTimerRef = useRef(null)
 
       useEffect(() => () => {
         if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+        if (moreTimerRef.current) window.clearTimeout(moreTimerRef.current)
       }, [])
       const { q: primaryQuery, alt } = torrentQuery(item)
+
+      /** Request one page of BT rows for this title (page 1 is the first page). */
+      function requestTorrentsPage(page, signal) {
+        const { q, alt: altQuery } = torrentQuery(item)
+        const params = new URLSearchParams()
+        params.set('q', q)
+        params.set('source', 'all')
+        params.set('limit', '20')
+        params.set('page', String(page))
+        if (altQuery) params.set('alt', altQuery)
+        return callApi('/torrents?' + params.toString(), {
+          headers: { accept: 'application/json' },
+          signal: signal,
+        }).then(body => ({
+          rows: Array.isArray(body.results) ? body.results : [],
+          errors: Array.isArray(body.errors) ? body.errors : [],
+          tookMs: body.tookMs || 0,
+          page: body.page || page,
+          hasMore: Boolean(body.hasMore),
+          query: body.query || q,
+        }))
+      }
 
       useEffect(() => {
         if (attempt === 0) {
           const hit = session.torrents && session.torrents[cacheKey]
           if (hit && hit.status !== 'loading') return undefined
         }
-        const { q, alt: altQuery } = torrentQuery(item)
+        const { q } = torrentQuery(item)
         if (!q) {
           setView({ status: 'done', results: [], errors: [], tookMs: 0, query: '' })
           return undefined
         }
         const controller = new AbortController()
         let live = true
-        const params = new URLSearchParams()
-        params.set('q', q)
-        params.set('source', 'all')
-        params.set('limit', '20')
-        if (altQuery) params.set('alt', altQuery)
+        setMoreFailure(null)
+        setLoadingMore(false)
         setView({ status: 'loading', results: [], errors: [], tookMs: 0, query: q })
-        callApi('/torrents?' + params.toString(), {
-          headers: { accept: 'application/json' },
-          signal: controller.signal,
-        })
-          .then(body => {
+        requestTorrentsPage(1, controller.signal)
+          .then(page => {
             if (!live) return
             const done = {
               status: 'done',
-              results: Array.isArray(body.results) ? body.results : [],
-              errors: Array.isArray(body.errors) ? body.errors : [],
-              tookMs: body.tookMs || 0,
-              query: body.query || q,
+              results: page.rows,
+              errors: page.errors,
+              tookMs: page.tookMs,
+              page: page.page,
+              hasMore: page.hasMore,
+              query: page.query,
             }
             session.torrents = { ...(session.torrents || {}), [cacheKey]: done }
             setView(done)
@@ -1686,7 +1719,55 @@ window.__ModuleLoader__.load({
         }
       }, [cacheKey, attempt])
 
+      /**
+       * Append the next page of BT rows. Rows are deduped by info hash because
+       * pages from different indexes can overlap, and the last failed page is
+       * kept so the retry button can ask for it again.
+       */
+      function loadMore() {
+        if (loadingMore || !view.hasMore || view.status !== 'done') return
+        const nextPage = (view.page || 1) + 1
+        setLoadingMore(true)
+        setMoreFailure(null)
+        const controller = new AbortController()
+        requestTorrentsPage(nextPage, controller.signal)
+          .then(page => {
+            const seen = new Set((view.results || []).map(row => row && row.id))
+            const extra = page.rows.filter(row => row && !seen.has(row.id))
+            const merged = {
+              ...view,
+              results: (view.results || []).concat(extra),
+              errors: page.errors,
+              tookMs: page.tookMs,
+              page: page.page,
+              hasMore: page.hasMore,
+            }
+            session.torrents = { ...(session.torrents || {}), [cacheKey]: merged }
+            setView(merged)
+          })
+          .catch(error => {
+            if (controller.signal.aborted) return
+            setMoreFailure(error && error.code ? error.code : 'network')
+          })
+          .finally(() => setLoadingMore(false))
+      }
+
+      /* Infinite scroll: the footer sentinel loads the next page when it comes
+         near the viewport (with a button as the accessible fallback). */
+      useEffect(() => {
+        if (view.status !== 'done' || !view.hasMore || loadingMore) return undefined
+        const node = moreRef.current
+        if (!node || typeof IntersectionObserver !== 'function') return undefined
+        const observer = new IntersectionObserver(entries => {
+          if (entries.some(entry => entry.isIntersecting)) loadMore()
+        }, { rootMargin: '240px 0px' })
+        observer.observe(node)
+        return () => observer.disconnect()
+      }, [view.status, view.hasMore, view.page, loadingMore, view.results.length])
+
       const retry = () => {
+        setMoreFailure(null)
+        setLoadingMore(false)
         setView({ status: 'loading', results: [], errors: [], tookMs: 0, query: primaryQuery })
         setAttempt(value => value + 1)
       }
@@ -1756,6 +1837,38 @@ window.__ModuleLoader__.load({
       }
       const fallbackQuery = alt || primaryQuery || item.title || ''
 
+      /* Paged loading footer: sentinel + button while more pages exist, a
+         failure hint that retries the same page, and an end note. */
+      let moreFooter = null
+      if (view.status === 'done' && sortedResults.length > 0) {
+        if (moreFailure) {
+          moreFooter = h(RecommendHint, {
+            t: t,
+            text: t('torrent.moreFailed'),
+            actionLabel: t('torrent.retry'),
+            onAction: loadMore,
+          })
+        } else if (loadingMore) {
+          moreFooter = h(
+            'p',
+            { className: 'mw-torrent-more-note', role: 'status' },
+            t('torrent.loadingMore'),
+          )
+        } else if (view.hasMore) {
+          moreFooter = h(
+            'div',
+            { className: 'mw-torrent-more', ref: moreRef },
+            h(
+              'button',
+              { type: 'button', className: 'mw-btn', onClick: loadMore },
+              t('torrent.loadMore'),
+            ),
+          )
+        } else {
+          moreFooter = h('p', { className: 'mw-torrent-more-note' }, t('torrent.end'))
+        }
+      }
+
       let body = null
       if (view.status === 'loading') {
         const rows = []
@@ -1803,6 +1916,9 @@ window.__ModuleLoader__.load({
         )
       } else {
         body = h(
+          'div',
+          null,
+          h(
           'div',
           { className: 'mw-torrent-list', role: 'list' },
           sortedResults.map((row, index) => {
@@ -1857,6 +1973,8 @@ window.__ModuleLoader__.load({
             ),
             )
           }),
+          ),
+          moreFooter,
         )
       }
 

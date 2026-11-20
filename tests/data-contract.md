@@ -676,3 +676,30 @@ the TV recommendation endpoint:
 `GET https://m.douban.com/rexxar/api/v2/tv/recommend?refresh=0&start=&count=&selected_categories=%7B%7D&uncollect=false&tags=<tag>&sort=<S|U>`
 with a `https://m.douban.com/tv/` Referer. Rows are TV series only, paging and
 the 500-row cap behave exactly like the movie feed.
+
+## Paged BT search (v1.12)
+
+`GET /movie-workbench/api/torrents` accepts an optional `page` parameter
+(integer `1`–`20`, default `1`); anything else is `400 bad_page`. The response
+envelope gains `page` and `hasMore`:
+
+```json
+{ "ok": true, "query": "Inception 2010", "alt": null, "page": 1,
+  "tookMs": 640, "results": [ … ], "hasMore": true, "errors": [] }
+```
+
+Provider paging:
+
+- **BitSearch** — `https://bitsearch.to/search?q=<q>&page=<n>` for `n > 1`
+  (redirects to bitsearch.eu are followed); each page returns about 20 cards.
+  `hasMore` is `true` when the parsed page is full (20 rows), so a short page is
+  the end of the list. The 10-minute cache key includes the page number.
+- **BT4G** — the RSS endpoint only serves one page (`&page=rss` ignores `p`/`limit`),
+  so BT4G contributes rows to page 1 only and reports `hasMore: false`.
+  `source=bt4g&page=2` is a valid empty page, not an error.
+
+`source=all` merges only indexes that still have pages: page 1 keeps the quota
+interleave so both indexes stay visible, page 2+ asks BitSearch only and caps
+the merged page at `limit`. The client appends the next page, deduping rows by
+info hash, and exposes a footer with `加载更多` / `正在加载…` / `没有更多了` /
+`加载更多失败` plus an IntersectionObserver sentinel for scroll loading.

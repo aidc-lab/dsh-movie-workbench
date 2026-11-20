@@ -587,6 +587,8 @@ assert.ok(!doubanDetailHtml.includes('该渠道没有提供简介'), 'douban det
 const TORRENT_VIEW = {
   status: 'done',
   tookMs: 640,
+  page: 1,
+  hasMore: true,
   query: 'Inception 2010',
   errors: [],
   results: [
@@ -630,6 +632,7 @@ const torrentHtml = renderState('detail (torrents)', torrentSession, [
   ['复制', 'copy label'],
   ['详情', 'details link'],
   ['65.95 GB', 'null-seeders row still rendered'],
+  ['加载更多', 'paged torrent footer offers the next page'],
 ])
 assert.ok(!torrentHtml.includes('href="magnet:'), 'torrent rows no longer link the magnet directly')
 assert.ok((torrentHtml.match(/mw-sort-chip/g) || []).length >= 4, 'four sort chips (default/seeders/leechers/size)')
@@ -637,6 +640,14 @@ assert.ok(/mw-sort-chip[^>]*data-selected=&quot;true&quot;/.test(torrentHtml), '
 assert.ok(!/>\s*(BT4G|BitSearch)\s*</.test(torrentHtml), 'torrent rows do not print the source label')
 assert.ok(torrentHtml.includes('class="mw-btn mw-btn-primary mw-torrent-copy"'), 'copy is a button, not an anchor')
 assert.ok(torrentHtml.indexOf('mw-torrents') > torrentHtml.indexOf('mw-item'), 'BT resources render below the title metadata')
+
+const TORRENT_END_VIEW = { ...TORRENT_VIEW, page: 3, hasMore: false }
+const torrentEndSession = `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, torrents: { "tmdb|157336": ${JSON.stringify(TORRENT_END_VIEW)} } }`
+const torrentEndHtml = renderState('detail (torrents end)', torrentEndSession, [
+  ['mw-torrent-row', 'torrent rows'],
+  ['没有更多了', 'torrent end note'],
+])
+assert.ok(!torrentEndHtml.includes('加载更多'), 'torrent end state has no load-more button')
 
 const errorHtml = renderState('error', "{ source: 'tmdb', draft: 'Inception', data: null, phase: 'error', failure: 'tmdb_key_missing', selectedItem: null, suggestions: null, channel: null, channels: {} }", [
   ['data-view="list"', 'list view'],
@@ -674,4 +685,5 @@ console.log('  chart        :', chartHtml.length, 'chars')
 console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')
+console.log('  detail+torr end:', torrentEndHtml.length, 'chars')
 console.log('  error        :', errorHtml.length, 'chars')

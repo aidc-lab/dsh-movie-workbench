@@ -20,8 +20,8 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   each genre; TV lists group 官方榜单, 年度榜单 and 高分经典 / 近期热门 for the same genres.
   Generated charts use their first title's poster as the card cover. Open a chart to see the
   ranked titles with the same paged infinite scroll.
-- **BT resources** — search BT resources, sortable by size, seeders or downloads; copy the magnet
-  link or open the source page.
+- **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
+  loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 
 ## Installation
 
@@ -65,7 +65,7 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /charts?source=douban&kind=movie\|tv` | one chart catalog: `movie` (default) has 3 official charts with live metadata, 10 annual charts (高分/热门 for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (94 total); `tv` has 3 official, 10 annual and 54 genre charts (67 total, no hidden gems) |
 | `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, `genre:<genre>:<S or U>`, or the TV forms `tv-year:<yyyy>:<S or U>` / `tv-genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
 | `GET /detail?source=douban&id=` | synopsis and metadata for a DouBan title |
-| `GET /torrents?q=&alt=&source=&limit=` | BT resource search |
+| `GET /torrents?q=&alt=&source=&limit=&page=` | BT resource search; one page of results (`page` 1–20) plus `hasMore` for scroll loading |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
 
 All upstream HTTP requests happen in the Host, so the page stays same-origin and DouBan's `Referer`
