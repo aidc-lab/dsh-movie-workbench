@@ -491,16 +491,17 @@ async function main() {
     const trendingImdb24Rows = Array.isArray(trendingImdb24.body?.results)
       ? trendingImdb24.body.results
       : []
+    const first24SeedIds = allSeedIds.slice(0, 24)
     check(
       'trending source=imdb&limit=24 -> 24 seeded ids in contract order (first ten unchanged)',
       trendingImdb24.response.status === 200 &&
         trendingImdb24.body?.ok === true &&
-        trendingImdb24Rows.length === allSeedIds.length &&
-        trendingImdb24Rows.every((row, index) => row.id === allSeedIds[index]) &&
+        trendingImdb24Rows.length === first24SeedIds.length &&
+        trendingImdb24Rows.every((row, index) => row.id === first24SeedIds[index]) &&
         trendingImdb24Rows.every(isNormalizedResult),
       `ids=${trendingImdb24Rows.map((row) => row.id).join(',')}`,
     )
-    printSample('IMDb trending limit=24 ids (contract order)', allSeedIds)
+    printSample('IMDb trending limit=24 ids (contract order)', first24SeedIds)
 
     const trendingTmdb24 = await getJson(`${api}/trending?source=tmdb&limit=24`)
     check(
