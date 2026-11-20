@@ -1,3 +1,5 @@
-![主页](home.png)
+在一个页面上发现你感兴趣的电影和电视剧。
 
-![详情页](detail.png)
+|  |  |
+|------|------|
+| ![alt text](home.png) | ![alt text](detail.png)   |

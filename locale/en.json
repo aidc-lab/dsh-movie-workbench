@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Movies workbench",
-    "description": "A DeepSeek Harness plugin that adds a Movies workbench panel to the left sidebar: search movies and TV series across TMDB, IMDb and DouBan on a single page, and find BT resources.",
+    "description": "DSH Movies workbench : Search for movies and TV series from TMDB, IMDb and Douban on one page and automatically discover BT resources.",
     "detail": "docs/DETAIL.md"
   }
 }

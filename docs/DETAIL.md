@@ -1,3 +1,5 @@
-![home page](home.png)
+Discover the films and TV series you are interested in on one page.
 
-![detail page](detail.png)
+|  |  |
+|------|------|
+| ![alt text](home.png) | ![alt text](detail.png)   |

@@ -11,7 +11,7 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 ## Features
 
 - **Film & TV search** — results grouped by channel, with posters, years, ratings and source links.
-- **Trending** — each channel's popular movies and TV series on the home page.
+- **Trending** — each channel's popular movies and TV series on the home page; the row length follows the panel width so every channel fills exactly two rows, and it re-requests on resize.
 - **Channel browse** — open any channel for its own page with category tabs (TMDB: This week /
   Movies / TV; IMDb: Featured / Movies / TV; DouBan: Popular / Movies / TV) and infinite scroll for
   the next pages.

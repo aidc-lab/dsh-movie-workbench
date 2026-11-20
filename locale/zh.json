@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "影视工作台",
-    "description": "一个 DeepSeek Harness 插件，在左侧栏加入 影视工作台 面板：在一个页面里检索 TMDB、IMDb 和 豆瓣 的电影与剧集，并查找 BT 资源。",
+    "description": "DSH 影视工作台：在一个页面里检索 TMDB、IMDb 和 豆瓣 的电影与剧集，自动发现 BT 资源。",
     "detail": "docs/DETAIL.zh.md"
   }
 }

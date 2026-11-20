@@ -254,7 +254,7 @@ The idle recommendation rows show each channel's default set, and a per-channel
     filtered to movie/tv) until `limit` rows are collected or 3 pages were read.
   - **douban** — request `page_limit=<limit>` for both the movie and TV
     `j/search_subjects` calls and interleave as before.
-  - **imdb** — the curated seed list is extended to 24 entries appended after
+  - **imdb** — the curated seed list is extended to 30 entries appended after
     the original ten, in this order: `tt0110912` Pulp Fiction 1994,
     `tt0109830` Forrest Gump 1994, `tt0137523` Fight Club 1999,
     `tt0120737` The Lord of the Rings: The Fellowship of the Ring 2001,

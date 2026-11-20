@@ -39,6 +39,28 @@ window.__ModuleLoader__.load({
       douban: ['popular', 'movie', 'tv'],
     }
 
+    const RECOMMENDATION_CARD_MIN_WIDTH = 148
+    const RECOMMENDATION_CARD_GAP = 16
+    const RECOMMENDATION_MAX_ITEMS = 30
+
+    /**
+     * How many titles a recommendation row needs to fill exactly two grid rows
+     * at the given content width. The grid is auto-fill with 148px cards and a
+     * 16px column gap, so this mirrors that arithmetic and asks the Host for
+     * two rows worth of titles (clamped to its per-request limit).
+     *
+     * @param {number} width available row width in CSS pixels
+     * @returns {number}
+     */
+    function recommendationLimitForWidth(width) {
+      if (!Number.isFinite(width) || width <= 0) return 12
+      const columns = Math.max(
+        1,
+        Math.floor((width + RECOMMENDATION_CARD_GAP) / (RECOMMENDATION_CARD_MIN_WIDTH + RECOMMENDATION_CARD_GAP)),
+      )
+      return Math.min(RECOMMENDATION_MAX_ITEMS, Math.max(2, columns * 2))
+    }
+
     function channelCategories(source) {
       return BROWSE_CATEGORIES[source] || []
     }
@@ -1686,6 +1708,7 @@ window.__ModuleLoader__.load({
       const [source, setSource] = useState(session.source)
       const [sources, setSources] = useState(session.sources || { tmdb: true, imdb: true, douban: true })
       const [settingsOpen, setSettingsOpen] = useState(false)
+      const [recommendationLimit, setRecommendationLimit] = useState(12)
       const [draft, setDraft] = useState(session.draft)
       const [data, setData] = useState(session.data)
       const [phase, setPhase] = useState(session.phase)
@@ -1711,6 +1734,9 @@ window.__ModuleLoader__.load({
       const channelAbortRef = useRef(null)
       const channelTriggerRef = useRef(null)
       const channelRef = useRef(channel)
+      const bodyRef = useRef(null)
+      const recommendationLimitRef = useRef(12)
+      const suggestionsLimitRef = useRef(0)
       const moreRef = useRef(false)
       const requestRef = useRef(0)
       const keyRef = useRef(storedKey)
@@ -1776,6 +1802,39 @@ window.__ModuleLoader__.load({
         // so a restore in that state must start a fresh load.
         if (!session.suggestions || session.suggestions.status === 'loading') void loadSuggestions()
       }, [])
+
+      // Recommendation rows fill exactly two grid rows: measure the list column,
+      // request columns * 2 titles, and refetch when the panel is resized.
+      useEffect(() => {
+        const node = bodyRef.current
+        if (!node) return undefined
+        const read = () => {
+          try {
+            const style = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(node) : null
+            const left = style ? parseFloat(style.paddingLeft) || 0 : 0
+            const right = style ? parseFloat(style.paddingRight) || 0 : 0
+            const width = (node.clientWidth || 0) - left - right
+            setRecommendationLimit(current => {
+              const next = recommendationLimitForWidth(width)
+              return next === current ? current : next
+            })
+          } catch (error) {
+            /* A DOM shim without layout keeps the default 12. */
+          }
+        }
+        read()
+        if (typeof ResizeObserver !== 'function') return undefined
+        const observer = new ResizeObserver(read)
+        observer.observe(node)
+        return () => observer.disconnect()
+      }, [])
+
+      useEffect(() => {
+        recommendationLimitRef.current = recommendationLimit
+        if (phase !== 'idle' || !suggestions || suggestions.status === 'loading') return
+        if (suggestionsLimitRef.current === recommendationLimit) return
+        void loadSuggestions()
+      }, [recommendationLimit, phase, suggestions])
 
       useEffect(() => {
         const node = inputRef.current
@@ -1882,12 +1941,14 @@ window.__ModuleLoader__.load({
         const params = new URLSearchParams()
         params.set('source', 'all')
         params.set('lang', languageForSearch(getLocale()))
-        params.set('limit', '12')
+        const limit = recommendationLimitRef.current
+        params.set('limit', String(limit))
         const headers = { accept: 'application/json' }
         if (keyRef.current) headers['x-mw-tmdb-key'] = keyRef.current
         try {
           const body = await callApi('/trending?' + params.toString(), { headers, signal: controller.signal })
           if (controller.signal.aborted) return
+          suggestionsLimitRef.current = limit
           const items = Array.isArray(body.results) ? body.results : []
           const done = {
             status: 'done',
@@ -2542,7 +2603,7 @@ window.__ModuleLoader__.load({
           : null,
         h(
           'div',
-          { className: 'mw-body' },
+          { className: 'mw-body', ref: bodyRef },
           selectedItem
             ? h(DetailPage, {
               key: String(selectedItem.source) + '|' + String(selectedItem.id),
