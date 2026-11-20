@@ -13,6 +13,8 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
 - **热门推荐** — 首页展示各渠道热门推荐影视；每行数量随面板宽度自适应，正好铺满两行，窗口尺寸变化时自动重新请求。
 - **渠道浏览** — 点进渠道进入独立页面，按分类标签切换（TMDB：本周趋势 / 电影 / 剧集；
   IMDb：精选作品 / 电影 / 剧集；豆瓣：热门推荐 / 电影 / 剧集），下滑自动加载下一页。
+- **豆瓣片单** — 豆瓣渠道页另有「片单」标签，直接展示官方榜单（Top250、一周口碑、实时热门、
+  华语/全球口碑剧集）；点开榜单按排名展示影片，同样支持下滑加载更多。
 - **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序；可复制磁力链接或打开来源页。
 
 ## 安装
@@ -52,6 +54,8 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `GET /search?q=&source=&lang=` | 分发到所选渠道并返回归一化结果 |
 | `GET /trending?source=&lang=&limit=` | 推荐行，或单个渠道的更长列表 |
 | `GET /browse?source=&category=&page=&cursor=&lang=` | 渠道浏览分类的一页（20 条），返回 `hasMore` 与 IMDb 的不透明 `next` 游标用于无限加载 |
+| `GET /charts?source=douban` | 豆瓣官方片单列表（含实时元数据），供「片单」标签页使用 |
+| `GET /chart?source=douban&id=&start=&count=` | 某个榜单的一页按排名条目 |
 | `GET /detail?source=douban&id=` | 豆瓣条目的简介与元数据 |
 | `GET /torrents?q=&alt=&source=&limit=` | BT 资源搜索 |
 | `GET /image?url=` | 代理白名单图床的海报 |

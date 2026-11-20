@@ -468,3 +468,84 @@ provider codes surfaced through `errors` (`tmdb_key_missing`, `tmdb_unauthorized
   `popular` interleaves 10 hot movie rows and 10 hot TV rows per page
   (`page_start=(page-1)*10` each), so the page alternates movie/TV;
   `movie` / `tv` use `page_limit=20` and `page_start=(page-1)*20`.
+
+## DouBan charts: `GET /movie-workbench/api/charts` + `GET /movie-workbench/api/chart` (v1.8)
+
+The DouBan channel's 片单 tab lists the official charts; opening one shows its
+ranked titles with paged infinite scroll (no search box, per product decision).
+
+### Request
+
+`/charts?source=douban` — `source` is required and must be exactly `douban`.
+
+`/chart?source=douban&id=&start=&count=` — `source` required (`douban`), `id`
+required and must be one of the allowlisted chart ids, `start` optional integer
+`0`–`1000` (default `0`), `count` optional integer `1`–`30` (default `20`).
+
+Allowlisted chart ids, in display order:
+
+```json
+["movie_top250", "movie_weekly_best", "movie_real_time_hotest",
+ "tv_real_time_hotest", "tv_chinese_best_weekly", "tv_global_best_weekly"]
+```
+
+### Response
+
+`/charts` is always HTTP 200 for a valid request:
+
+```json
+{
+  "ok": true,
+  "source": "douban",
+  "tookMs": 412,
+  "charts": [
+    {
+      "id": "movie_top250",
+      "title": "豆瓣电影 Top250",
+      "subtitle": "豆瓣榜单",
+      "description": "…",
+      "total": 250,
+      "cover": "https://img3.doubanio.com/view/photo/…jpg"
+    }
+  ],
+  "errors": []
+}
+```
+
+`/chart` is also HTTP 200 with `ok: true` for a valid request; a provider failure
+returns an empty page plus an `errors` entry:
+
+```json
+{
+  "ok": true,
+  "source": "douban",
+  "id": "movie_top250",
+  "start": 0,
+  "pageSize": 5,
+  "tookMs": 233,
+  "total": 250,
+  "items": [ /* normalized result rows, plus rank and subtitle */ ],
+  "hasMore": true,
+  "errors": []
+}
+```
+
+Field rules: `charts[].total` may be `null` when upstream metadata failed (the
+chart still renders with its static title); `items` rows use the same normalized
+shape as `/search` and additionally carry `rank` (1-based integer, may be null)
+and `subtitle` (DouBan's `card_subtitle` line); `hasMore` is
+`start + items.length < total`; `total` may be `null` on failure.
+
+Stable error codes: `bad_source`, `empty_id`, `bad_chart`, `bad_start`,
+`bad_count` (HTTP 400), plus provider codes surfaced through `errors`
+(`upstream_error`, `timeout`, …).
+
+### Upstream
+
+Keyless mobile web API with a `https://m.douban.com/` Referer:
+
+- metadata: `GET https://m.douban.com/rexxar/api/v2/subject_collection/<id>?for_mobile=1`
+- rows: `GET https://m.douban.com/rexxar/api/v2/subject_collection/<id>/items?start=&count=&for_mobile=1`
+
+Chart metadata is cached in Host memory for 6 hours (bounded to 20 entries); rows
+are fetched per request so rankings stay current.

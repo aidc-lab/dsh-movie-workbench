@@ -13,6 +13,8 @@
  *   /trending?source=douban|imdb|all          (v1.1 idle recommendations)
  *   /trending?...&limit=24|abc|0|99           (v1.2 "see all" limit)
  *   /browse?source=douban|imdb|tmdb&category=&page=&cursor=   (v1.7 channel tabs + paging)
+ *   /charts?source=douban                      (v1.8 official chart list)
+ *   /chart?source=douban&id=&start=&count=     (v1.8 ranked chart titles)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
@@ -831,6 +833,111 @@ async function main() {
       browseNonNumericPage.response.status === 400 &&
         browseNonNumericPage.body?.code === 'bad_page',
       `HTTP ${browseNonNumericPage.response.status}`,
+    )
+
+    /* ---------------- /charts + /chart (contract v1.8) ---------------- */
+    const charts = await getJson(`${api}/charts?source=douban`)
+    const chartList = Array.isArray(charts.body?.charts) ? charts.body.charts : []
+    check(
+      'GET /charts?source=douban -> 200 ok:true with the six official charts',
+      charts.response.status === 200 &&
+        charts.body?.ok === true &&
+        charts.body?.source === 'douban' &&
+        chartList.length === 6 &&
+        chartList.map((chart) => chart.id).join(',') ===
+          'movie_top250,movie_weekly_best,movie_real_time_hotest,tv_real_time_hotest,tv_chinese_best_weekly,tv_global_best_weekly' &&
+        chartList.every((chart) => typeof chart.title === 'string' && chart.title.length > 0) &&
+        Array.isArray(charts.body?.errors),
+      `HTTP ${charts.response.status}, charts=${chartList.length}`,
+    )
+    check(
+      'chart metadata carries a cover, a description and a total',
+      chartList[0]?.total === 250 &&
+        typeof chartList[0]?.cover === 'string' &&
+        chartList[0].cover.startsWith('https://') &&
+        typeof chartList[0]?.description === 'string' &&
+        chartList[0].description.length > 0,
+      JSON.stringify({
+        total: chartList[0]?.total,
+        cover: Boolean(chartList[0]?.cover),
+        desc: String(chartList[0]?.description || '').slice(0, 24),
+      }),
+    )
+
+    const chartPageOne = await getJson(
+      `${api}/chart?source=douban&id=movie_top250&start=0&count=5`,
+    )
+    const chartRows = Array.isArray(chartPageOne.body?.items) ? chartPageOne.body.items : []
+    check(
+      'GET /chart?source=douban&id=movie_top250&start=0&count=5 -> five ranked titles',
+      chartPageOne.response.status === 200 &&
+        chartPageOne.body?.ok === true &&
+        chartPageOne.body?.id === 'movie_top250' &&
+        chartPageOne.body?.total === 250 &&
+        chartPageOne.body?.hasMore === true &&
+        chartRows.length === 5 &&
+        chartRows.every(isNormalizedResult) &&
+        chartRows.every((row) => row.source === 'douban') &&
+        chartRows.map((row) => row.rank).join(',') === '1,2,3,4,5',
+      `HTTP ${chartPageOne.response.status}, rows=${chartRows.length}, ranks=${chartRows.map((row) => row.rank).join(',')}`,
+    )
+    check(
+      'chart rows carry the card subtitle and a poster',
+      chartRows.every((row) => typeof row.subtitle === 'string') &&
+        chartRows.some((row) => typeof row.poster === 'string' && row.poster.startsWith('https://')),
+      JSON.stringify(chartRows.slice(0, 2).map((row) => row.subtitle)),
+    )
+
+    const chartLastPage = await getJson(
+      `${api}/chart?source=douban&id=movie_top250&start=245&count=10`,
+    )
+    check(
+      'GET /chart movie_top250 start=245 -> the last five rows and hasMore=false',
+      chartLastPage.response.status === 200 &&
+        chartLastPage.body?.ok === true &&
+        chartLastPage.body?.hasMore === false &&
+        Array.isArray(chartLastPage.body?.items) &&
+        chartLastPage.body.items.length === 5 &&
+        chartLastPage.body.items[4]?.rank === 250,
+      `HTTP ${chartLastPage.response.status}, rows=${chartLastPage.body?.items?.length}, lastRank=${chartLastPage.body?.items?.[4]?.rank}`,
+    )
+
+    const chartBadId = await getJson(`${api}/chart?source=douban&id=nope`)
+    check(
+      'chart unsupported id -> 400 bad_chart',
+      chartBadId.response.status === 400 && chartBadId.body?.code === 'bad_chart',
+      `HTTP ${chartBadId.response.status}`,
+    )
+    const chartBadStart = await getJson(`${api}/chart?source=douban&id=movie_top250&start=-1`)
+    check(
+      'chart start=-1 -> 400 bad_start',
+      chartBadStart.response.status === 400 && chartBadStart.body?.code === 'bad_start',
+      `HTTP ${chartBadStart.response.status}`,
+    )
+    const chartBadCount = await getJson(`${api}/chart?source=douban&id=movie_top250&count=0`)
+    check(
+      'chart count=0 -> 400 bad_count',
+      chartBadCount.response.status === 400 && chartBadCount.body?.code === 'bad_count',
+      `HTTP ${chartBadCount.response.status}`,
+    )
+    const chartMissingSource = await getJson(`${api}/chart?id=movie_top250`)
+    check(
+      'chart without source -> 400 bad_source',
+      chartMissingSource.response.status === 400 && chartMissingSource.body?.code === 'bad_source',
+      `HTTP ${chartMissingSource.response.status}`,
+    )
+    const chartsBadSource = await getJson(`${api}/charts?source=tmdb`)
+    check(
+      'charts source=tmdb -> 400 bad_source',
+      chartsBadSource.response.status === 400 && chartsBadSource.body?.code === 'bad_source',
+      `HTTP ${chartsBadSource.response.status}`,
+    )
+    info(
+      'charts sample',
+      chartList
+        .slice(0, 3)
+        .map((chart) => `${chart.id}:${chart.title} (${chart.total})`)
+        .join(' ; '),
     )
 
     /* ---------------- /image proxy ---------------- */

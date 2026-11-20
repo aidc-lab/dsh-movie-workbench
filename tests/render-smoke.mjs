@@ -339,6 +339,93 @@ const channelEndHtml = renderState('channel (end)', `{ source: 'all', draft: '',
 assert.ok(!channelEndHtml.includes('加载更多'), 'channel end: no load-more button')
 assert.ok(!channelEndHtml.includes('class="mw-more-sentinel"'), 'channel end: no load-more sentinel')
 
+const LISTS = {
+  status: 'done',
+  charts: [
+    {
+      id: 'movie_top250',
+      title: '豆瓣电影 Top250',
+      subtitle: '豆瓣榜单',
+      description: '影迷必看的经典电影。',
+      total: 250,
+      cover: 'https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2936346968.jpg',
+    },
+    {
+      id: 'movie_weekly_best',
+      title: '一周口碑电影榜',
+      subtitle: '豆瓣榜单',
+      description: '本周口碑新片。',
+      total: 10,
+      cover: null,
+    },
+  ],
+  errors: [],
+  failure: null,
+}
+const LISTS_CHANNEL = {
+  source: 'douban',
+  category: 'lists',
+  categories: ['popular', 'movie', 'tv', 'lists'],
+  status: 'done',
+  items: [],
+  failure: null,
+  page: 1,
+  hasMore: false,
+}
+const listsChannelHtml = renderState('channel (lists)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, channels: {} }`, [
+  ['data-view="channel"', 'lists tab uses the channel view'],
+  ['豆瓣 · 片单', 'lists tab heading'],
+  ['片单', 'lists tab label'],
+  ['class="mw-chart-grid"', 'chart card grid'],
+  ['mw-chart-card', 'chart cards'],
+  ['豆瓣电影 Top250', 'chart title'],
+  ['mw-chart-desc', 'chart description'],
+  ['共 250 部', 'chart total copy'],
+  ['mw-chart-cover', 'chart cover block'],
+])
+assert.ok(!listsChannelHtml.includes('加载更多'), 'lists tab has no infinite-scroll footer')
+assert.ok(listsChannelHtml.includes('class="mw-chart-grid"'), 'lists tab renders the chart card grid')
+
+const RANKED = [
+  { ...ITEMS[2], rank: 1, subtitle: '1994 / 美国 / 剧情 犯罪' },
+  { ...ITEMS[1], rank: 2, subtitle: '2010 / 美国 / 科幻' },
+]
+const CHART = {
+  id: 'movie_top250',
+  title: '豆瓣电影 Top250',
+  subtitle: '豆瓣榜单',
+  description: '影迷必看的经典电影。',
+  total: 250,
+  cover: null,
+}
+const chartView = {
+  chart: CHART,
+  status: 'done',
+  items: RANKED,
+  failure: null,
+  total: 250,
+  hasMore: true,
+}
+const chartHtml = renderState('chart', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, chartView: ${JSON.stringify(chartView)}, channels: {} }`, [
+  ['data-view="chart"', 'chart page container'],
+  ['返回片单', 'chart back label'],
+  ['豆瓣电影 Top250', 'chart heading'],
+  ['mw-chart-note', 'chart description line'],
+  ['共 250 部', 'chart total copy'],
+  ['mw-card-rank', 'rank badge'],
+  ['#1', 'first rank label'],
+  ['mw-grid', 'chart poster grid'],
+  ['加载更多', 'chart load-more control'],
+])
+assert.ok(!chartHtml.includes('部作品'), 'chart page hides the result count copy')
+
+const chartEndView = { ...chartView, hasMore: false }
+const chartEndHtml = renderState('chart (end)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(LISTS_CHANNEL)}, lists: ${JSON.stringify(LISTS)}, chartView: ${JSON.stringify(chartEndView)}, channels: {} }`, [
+  ['没有更多了', 'chart end copy'],
+  ['#2', 'second rank label'],
+])
+assert.ok(!chartEndHtml.includes('加载更多'), 'chart end: no load-more button')
+
 const detailHtml = renderState('detail', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {} }`, [
   ['data-view="detail"', 'detail view'],
   ['mw-detail-page', 'detail page'],
@@ -455,6 +542,8 @@ console.log('  idle recent  :', recentHtml.length, 'chars')
 console.log('  idle partial :', partialHtml.length, 'chars')
 console.log('  idle failed  :', failedHtml.length, 'chars')
 console.log('  channel      :', channelHtml.length, 'chars')
+console.log('  channel lists:', listsChannelHtml.length, 'chars')
+console.log('  chart        :', chartHtml.length, 'chars')
 console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')

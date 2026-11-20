@@ -39,6 +39,11 @@ window.__ModuleLoader__.load({
       douban: ['popular', 'movie', 'tv'],
     }
 
+    /* Douban's official charts live behind a client-only tab; the Host serves
+       them from /charts and /chart rather than /browse (contract v1.8). */
+    const DOUBAN_LISTS = 'lists'
+    const CHART_PAGE_SIZE = 20
+
     const RECOMMENDATION_CARD_MIN_WIDTH = 148
     const RECOMMENDATION_CARD_GAP = 16
     const RECOMMENDATION_MAX_ITEMS = 30
@@ -63,6 +68,13 @@ window.__ModuleLoader__.load({
 
     function channelCategories(source) {
       return BROWSE_CATEGORIES[source] || []
+    }
+
+    /** Tabs a channel page shows: its browse categories plus Douban's 片单. */
+    function channelCategoryTabs(source) {
+      const categories = channelCategories(source)
+      if (source !== 'douban') return categories
+      return categories.concat([DOUBAN_LISTS])
     }
 
     /** Cache key for one channel category inside `session.channels`. */
@@ -111,6 +123,12 @@ window.__ModuleLoader__.load({
       'browse.loadingMore': '正在加载…',
       'browse.end': '没有更多了',
       'browse.moreFailed': '加载更多失败',
+      'browse.lists': '片单',
+      'chart.back': '返回片单',
+      'chart.count': '共 {count} 部',
+      'chart.loading': '正在加载片单…',
+      'chart.failed': '片单加载失败',
+      'chart.empty': '该榜单暂时没有内容',
       'torrent.title': 'BT 资源',
       'torrent.note': '来自公开 BT 索引，仅供检索，请自行判断内容合法性',
       'torrent.loading': '正在搜索 BT 资源…',
@@ -215,6 +233,12 @@ window.__ModuleLoader__.load({
       'browse.loadingMore': 'Loading more…',
       'browse.end': 'No more titles',
       'browse.moreFailed': 'Could not load more',
+      'browse.lists': 'Lists',
+      'chart.back': 'Back to lists',
+      'chart.count': '{count} titles',
+      'chart.loading': 'Loading lists…',
+      'chart.failed': 'Could not load lists',
+      'chart.empty': 'This chart is empty',
       'torrent.title': 'BT resources',
       'torrent.note': 'From public torrent indexes; search only — check legality yourself',
       'torrent.loading': 'Searching torrent indexes…',
@@ -716,6 +740,18 @@ window.__ModuleLoader__.load({
       '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
       '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
       '.mw-more-sentinel{display:flex;justify-content:center;}',
+      '.mw-chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:0 0 8px;}',
+      '.mw-chart-card{display:flex;flex-direction:column;padding:0;border:0.5px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;cursor:pointer;text-align:left;transition:border-color .15s ease,background-color .15s ease,transform .15s ease;}',
+      '.mw-chart-card:hover{border-color:var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);transform:translateY(-2px);}',
+      '.mw-chart-card:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
+      '.mw-chart-cover{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:16/7;overflow:hidden;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-tertiary);}',
+      '.mw-chart-cover img{width:100%;height:100%;object-fit:cover;}',
+      '.mw-chart-body{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px;}',
+      '.mw-chart-title{font-size:14px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary);}',
+      '.mw-chart-desc{margin:0;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+      '.mw-chart-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-chart-note{margin:0 0 14px;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-card-rank{position:absolute;left:6px;top:6px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-bg-overlay) 72%,transparent);color:var(--dsw-alias-label-primary-foreground);font-size:11px;line-height:16px;font-weight:600;backdrop-filter:blur(6px);}',
       '.mw-idle-extras{display:flex;flex-direction:column;gap:12px;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--dsw-alias-border-l1);}',
       '.mw-toolbar-recent{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}',
       '.mw-recent-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin-right:2px;}',
@@ -807,6 +843,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'mw-thumb' },
           h(Poster, { item: item }),
+          item.rank ? h('span', { className: 'mw-card-rank' }, '#' + item.rank) : null,
           h(
             'div',
             { className: 'mw-thumb-top' },
@@ -1045,6 +1082,7 @@ window.__ModuleLoader__.load({
       const items = Array.isArray(state.items) ? state.items : []
       const loadingMore = Boolean(props.loadingMore)
       const hasMore = Boolean(state.hasMore)
+      const listsActive = activeCategory === DOUBAN_LISTS
       const backRef = useRef(null)
       const sentinelRef = useRef(null)
 
@@ -1053,7 +1091,7 @@ window.__ModuleLoader__.load({
       }, [])
 
       useEffect(() => {
-        if (!hasMore || loadingMore) return undefined
+        if (listsActive || !hasMore || loadingMore) return undefined
         const node = sentinelRef.current
         if (!node || typeof IntersectionObserver !== 'function') return undefined
         const observer = new IntersectionObserver(entries => {
@@ -1061,10 +1099,17 @@ window.__ModuleLoader__.load({
         }, { rootMargin: '280px 0px' })
         observer.observe(node)
         return () => observer.disconnect()
-      }, [hasMore, loadingMore, items.length, activeCategory])
+      }, [listsActive, hasMore, loadingMore, items.length, activeCategory])
 
       let body = null
-      if (state.status === 'loading') {
+      if (listsActive) {
+        body = h(ChartGrid, {
+          t: t,
+          state: props.lists,
+          onOpenChart: props.onOpenChart,
+          onRetry: props.onRetryLists,
+        })
+      } else if (state.status === 'loading') {
         body = h(Skeleton, null)
       } else if (state.status === 'error') {
         body = h(ErrorState, { t: t, code: state.failure || 'network', onRetry: props.onRetry })
@@ -1172,6 +1217,204 @@ window.__ModuleLoader__.load({
             )),
           )
           : null,
+        body,
+      )
+    }
+
+    /** One official Douban chart card (片单 tab). */
+    function ChartCard(props) {
+      const t = props.t
+      const chart = props.chart
+      const cover = chart.cover ? posterUrl(chart.cover) : ''
+      return h(
+        'button',
+        { type: 'button', className: 'mw-chart-card', onClick: () => props.onOpen(chart) },
+        h(
+          'div',
+          { className: 'mw-chart-cover' },
+          cover
+            ? h('img', {
+              src: cover,
+              alt: '',
+              loading: 'lazy',
+              decoding: 'async',
+              referrerPolicy: 'no-referrer',
+            })
+            : h(GlyphClapper, { size: 26 }),
+        ),
+        h(
+          'div',
+          { className: 'mw-chart-body' },
+          h('div', { className: 'mw-chart-title' }, chart.title || chart.id),
+          chart.description ? h('p', { className: 'mw-chart-desc' }, chart.description) : null,
+          h(
+            'div',
+            { className: 'mw-chart-meta' },
+            chart.subtitle ? h('span', null, chart.subtitle) : null,
+            chart.total ? h('span', null, t('chart.count', { count: chart.total })) : null,
+          ),
+        ),
+      )
+    }
+
+    /** The 片单 tab: official charts as cards, with loading/error/empty states. */
+    function ChartGrid(props) {
+      const t = props.t
+      const state = props.state
+      if (!state || state.status === 'loading' || state.status === 'idle') return h(Skeleton, null)
+      if (state.status === 'error') {
+        return h(ErrorState, {
+          t: t,
+          code: state.failure || 'network',
+          onRetry: props.onRetry,
+        })
+      }
+      const charts = Array.isArray(state.charts) ? state.charts : []
+      if (charts.length === 0) {
+        return h(
+          'div',
+          { className: 'mw-idle' },
+          h(RecommendHint, { t: t, text: t('chart.empty') }),
+        )
+      }
+      const partialFailure = Array.isArray(state.errors) && state.errors.length > 0
+      return h(
+        'div',
+        null,
+        h(
+          'div',
+          { className: 'mw-chart-grid' },
+          charts.map(chart => h(ChartCard, {
+            key: chart.id,
+            t: t,
+            chart: chart,
+            onOpen: props.onOpenChart,
+          })),
+        ),
+        partialFailure
+          ? h(
+            'div',
+            { className: 'mw-idle-extras' },
+            h(RecommendHint, {
+              t: t,
+              text: failureText(t, state.errors[0].code || 'upstream_error'),
+              actionLabel: t('recommend.retry'),
+              onAction: props.onRetry,
+            }),
+          )
+          : null,
+      )
+    }
+
+    /** One official chart: ranked titles with the same paged infinite scroll. */
+    function ChartPage(props) {
+      const t = props.t
+      const view = props.view
+      const chart = view.chart || {}
+      const items = Array.isArray(view.items) ? view.items : []
+      const loadingMore = Boolean(props.loadingMore)
+      const backRef = useRef(null)
+      const sentinelRef = useRef(null)
+
+      useEffect(() => {
+        if (backRef.current) backRef.current.focus()
+      }, [])
+
+      useEffect(() => {
+        if (!view.hasMore || loadingMore) return undefined
+        const node = sentinelRef.current
+        if (!node || typeof IntersectionObserver !== 'function') return undefined
+        const observer = new IntersectionObserver(entries => {
+          if (entries.some(entry => entry.isIntersecting)) props.onLoadMore()
+        }, { rootMargin: '280px 0px' })
+        observer.observe(node)
+        return () => observer.disconnect()
+      }, [view.hasMore, loadingMore, items.length])
+
+      const note = [chart.description, chart.total ? t('chart.count', { count: chart.total }) : '']
+        .filter(Boolean)
+        .join(' · ')
+
+      let body = null
+      if (view.status === 'loading') {
+        body = h(Skeleton, null)
+      } else if (view.status === 'error') {
+        body = h(ErrorState, {
+          t: t,
+          code: view.failure || 'network',
+          onRetry: props.onRetry,
+        })
+      } else if (items.length === 0) {
+        body = h(
+          'div',
+          { className: 'mw-idle' },
+          h(RecommendHint, {
+            t: t,
+            text: view.failure ? failureText(t, view.failure) : t('chart.empty'),
+            actionLabel: view.failure ? t('recommend.retry') : undefined,
+            onAction: props.onRetry,
+          }),
+        )
+      } else {
+        body = h(
+          'div',
+          null,
+          h(
+            'div',
+            { className: 'mw-grid' },
+            items.map(item => h(ResultCard, {
+              key: searchKey(item),
+              t: t,
+              item: item,
+              showSource: false,
+              onSelect: props.onSelect,
+            })),
+          ),
+          h(
+            'div',
+            { className: 'mw-more-row' },
+            loadingMore
+              ? h('span', { className: 'mw-channel-meta' }, t('browse.loadingMore'))
+              : props.moreFailure
+                ? h(
+                  'div',
+                  { className: 'mw-more-sentinel' },
+                  h('span', { className: 'mw-channel-meta' }, t('browse.moreFailed')),
+                  h('button', { type: 'button', className: 'mw-link-btn', onClick: props.onLoadMore }, t('recommend.retry')),
+                )
+                : view.hasMore
+                  ? h(
+                    'div',
+                    { className: 'mw-more-sentinel', ref: sentinelRef },
+                    h('button', { type: 'button', className: 'mw-btn', onClick: props.onLoadMore }, t('browse.loadMore')),
+                  )
+                  : h('span', { className: 'mw-channel-meta' }, t('browse.end')),
+          ),
+        )
+      }
+
+      return h(
+        'div',
+        { className: 'mw-detail-page', role: 'region', 'aria-label': chart.title || chart.id },
+        h(
+          'button',
+          { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
+          h(GlyphChevronLeft, { size: 15 }),
+          t('chart.back'),
+        ),
+        h(
+          'div',
+          { className: 'mw-channel-head' },
+          h('h2', { className: 'mw-channel-title' }, chart.title || chart.id),
+          h(
+            'button',
+            { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onRefresh },
+            h(GlyphRefresh, null),
+            ' ',
+            t('recommend.refresh'),
+          ),
+        ),
+        note ? h('p', { className: 'mw-chart-note' }, note) : null,
         body,
       )
     }
@@ -1701,6 +1944,8 @@ window.__ModuleLoader__.load({
       suggestions: null,
       channel: null,
       channels: {},
+      lists: null,
+      chartView: null,
       torrents: {},
       details: {},
       sources: readSourcePrefs(),
@@ -1720,8 +1965,12 @@ window.__ModuleLoader__.load({
       const [selectedItem, setSelectedItem] = useState(session.selectedItem)
       const [suggestions, setSuggestions] = useState(session.suggestions)
       const [channel, setChannel] = useState(session.channel)
+      const [lists, setLists] = useState(session.lists)
+      const [chartView, setChartView] = useState(session.chartView)
       const [loadingMore, setLoadingMore] = useState(false)
       const [moreFailure, setMoreFailure] = useState(null)
+      const [chartLoadingMore, setChartLoadingMore] = useState(false)
+      const [chartMoreFailure, setChartMoreFailure] = useState(null)
       const [recent, setRecent] = useState(readRecent)
       const [storedKey, setStoredKey] = useState(readTmdbKey)
       const [keyOpen, setKeyOpen] = useState(false)
@@ -1738,6 +1987,9 @@ window.__ModuleLoader__.load({
       const channelAbortRef = useRef(null)
       const channelTriggerRef = useRef(null)
       const channelRef = useRef(channel)
+      const chartRef = useRef(chartView)
+      const chartAbortRef = useRef(null)
+      const chartMoreRef = useRef(false)
       const bodyRef = useRef(null)
       const recommendationLimitRef = useRef(12)
       const suggestionsLimitRef = useRef(0)
@@ -1773,7 +2025,10 @@ window.__ModuleLoader__.load({
         session.suggestions = suggestions
         session.channel = channel
         channelRef.current = channel
-      }, [data, phase, failureCode, selectedItem, suggestions, channel])
+        session.lists = lists
+        session.chartView = chartView
+        chartRef.current = chartView
+      }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView])
       useEffect(() => {
         keyRef.current = storedKey
       }, [storedKey])
@@ -1982,7 +2237,7 @@ window.__ModuleLoader__.load({
 
       /** Open one channel's first browse category (its "see all" entry point). */
       function openChannel(channelSource) {
-        switchChannel(channelSource, channelCategories(channelSource)[0])
+        switchChannel(channelSource, channelCategoryTabs(channelSource)[0])
       }
 
       /** Show one channel category, reusing that category's cache when present. */
@@ -1991,13 +2246,32 @@ window.__ModuleLoader__.load({
         moreRef.current = false
         setLoadingMore(false)
         setMoreFailure(null)
+        if (category === DOUBAN_LISTS) {
+          const view = {
+            source: channelSource,
+            category: DOUBAN_LISTS,
+            categories: channelCategoryTabs(channelSource),
+            status: 'done',
+            items: [],
+            failure: null,
+            page: 1,
+            hasMore: false,
+            cursor: null,
+          }
+          setChannel(view)
+          session.channel = view
+          setChartView(null)
+          session.chartView = null
+          void loadCharts(false)
+          return
+        }
         const key = channelCacheKey(channelSource, category)
         const cached = session.channels && session.channels[key]
         if (cached && cached.status === 'done') {
           const view = {
             source: channelSource,
             category: category,
-            categories: channelCategories(channelSource),
+            categories: channelCategoryTabs(channelSource),
             status: 'done',
             items: cached.items,
             failure: cached.failure || null,
@@ -2014,7 +2288,7 @@ window.__ModuleLoader__.load({
 
       /** Load one page of a channel category; pages above 1 append to the grid. */
       async function loadChannel(channelSource, category, page) {
-        const categories = channelCategories(channelSource)
+        const categories = channelCategoryTabs(channelSource)
         const activeCategory = category || categories[0]
         const append = page > 1
         if (append) {
@@ -2149,9 +2423,169 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Load the Douban official-chart list for the 片单 tab. */
+      async function loadCharts(force) {
+        if (!force && session.lists && session.lists.status === 'done') {
+          setLists(session.lists)
+          return
+        }
+        const loading = { status: 'loading', charts: [], errors: [], failure: null }
+        setLists(loading)
+        session.lists = loading
+        try {
+          const body = await callApi('/charts?source=douban')
+          const charts = Array.isArray(body.charts) ? body.charts : []
+          const errors = Array.isArray(body.errors) ? body.errors : []
+          const done = {
+            status: 'done',
+            charts: charts,
+            errors: errors,
+            failure: errors.length > 0 ? (errors[0].code || 'upstream_error') : null,
+          }
+          setLists(done)
+          session.lists = done
+        } catch (error) {
+          const failed = {
+            status: 'error',
+            charts: [],
+            errors: [],
+            failure: error && error.code ? error.code : 'network',
+          }
+          setLists(failed)
+          session.lists = failed
+        }
+      }
+
+      /** Open one official chart and load its first page of ranked titles. */
+      function openChart(chart) {
+        if (!chart || !chart.id) return
+        void loadChartItems(chart, 0, false)
+      }
+
+      /** Load one range of a chart; `append` merges the next page in place. */
+      async function loadChartItems(chart, start, append) {
+        if (append) {
+          if (chartMoreRef.current) return
+          chartMoreRef.current = true
+          setChartLoadingMore(true)
+          setChartMoreFailure(null)
+        }
+        if (chartAbortRef.current) chartAbortRef.current.abort()
+        const controller = new AbortController()
+        chartAbortRef.current = controller
+        if (!append) {
+          const loading = {
+            chart: chart,
+            status: 'loading',
+            items: [],
+            failure: null,
+            total: chart.total || null,
+            hasMore: false,
+          }
+          setChartView(loading)
+          session.chartView = loading
+        }
+        const params = new URLSearchParams()
+        params.set('source', 'douban')
+        params.set('id', chart.id)
+        params.set('start', String(start))
+        params.set('count', String(CHART_PAGE_SIZE))
+        try {
+          const body = await callApi('/chart?' + params.toString(), { signal: controller.signal })
+          if (controller.signal.aborted) return
+          const items = Array.isArray(body.items) ? body.items : []
+          const errors = Array.isArray(body.errors) ? body.errors : []
+          const failure = errors.length > 0 ? (errors[0].code || 'upstream_error') : null
+          const total = Number.isInteger(body.total) ? body.total : (chart.total || null)
+          const current = chartRef.current
+          if (append) {
+            if (!current || !current.chart || current.chart.id !== chart.id) return
+            const seen = new Set((current.items || []).map(searchKey))
+            const fresh = items.filter(item => !seen.has(searchKey(item)))
+            const view = {
+              ...current,
+              status: 'done',
+              items: (current.items || []).concat(fresh),
+              failure: current.failure || failure,
+              total: total,
+              hasMore: Boolean(body.hasMore),
+            }
+            setChartView(view)
+            session.chartView = view
+          } else {
+            const view = {
+              chart: chart,
+              status: 'done',
+              items: items,
+              failure: failure,
+              total: total,
+              hasMore: Boolean(body.hasMore),
+            }
+            setChartView(view)
+            session.chartView = view
+          }
+        } catch (error) {
+          if (controller.signal.aborted) return
+          const code = error && error.code ? error.code : 'network'
+          if (append) {
+            setChartMoreFailure(code)
+          } else {
+            const failed = {
+              chart: chart,
+              status: 'error',
+              items: [],
+              failure: code,
+              total: chart.total || null,
+              hasMore: false,
+            }
+            setChartView(failed)
+            session.chartView = failed
+          }
+        } finally {
+          if (append) {
+            chartMoreRef.current = false
+            setChartLoadingMore(false)
+          }
+        }
+      }
+
+      /** Append the next page of the open chart. */
+      function loadMoreChart() {
+        const view = chartRef.current
+        if (!view || !view.hasMore || chartMoreRef.current) return
+        void loadChartItems(view.chart, (view.items || []).length, true)
+      }
+
+      /** Reload the open chart from its first row. */
+      function retryChart() {
+        const view = chartRef.current
+        if (!view || !view.chart) return
+        void loadChartItems(view.chart, 0, false)
+      }
+
+      /** Return from a chart to the channel's 片单 tab. */
+      function closeChart() {
+        if (chartAbortRef.current) chartAbortRef.current.abort()
+        chartMoreRef.current = false
+        setChartLoadingMore(false)
+        setChartMoreFailure(null)
+        setChartView(null)
+        session.chartView = null
+        const focusTrigger = () => {
+          const node = channelTriggerRef.current
+          if (node && typeof node.focus === 'function') node.focus()
+        }
+        if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(focusTrigger)
+        else focusTrigger()
+      }
+
       /** Clear the open channel's cache and reload its first page. */
       function reloadChannel() {
         if (!channel) return
+        if (channel.category === DOUBAN_LISTS) {
+          void loadCharts(true)
+          return
+        }
         const key = channelCacheKey(channel.source, channel.category)
         if (session.channels) delete session.channels[key]
         setMoreFailure(null)
@@ -2160,7 +2594,7 @@ window.__ModuleLoader__.load({
 
       /** Append the next page of the open channel. */
       function loadMoreChannel() {
-        if (!channel || !channel.hasMore || moreRef.current) return
+        if (!channel || channel.category === DOUBAN_LISTS || !channel.hasMore || moreRef.current) return
         void loadChannel(channel.source, channel.category, (channel.page || 1) + 1)
       }
 
@@ -2171,6 +2605,8 @@ window.__ModuleLoader__.load({
         setMoreFailure(null)
         setChannel(null)
         session.channel = null
+        setChartView(null)
+        session.chartView = null
         const focusTrigger = () => {
           const node = channelTriggerRef.current
           if (node && typeof node.focus === 'function') node.focus()
@@ -2374,7 +2810,7 @@ window.__ModuleLoader__.load({
         'div',
         {
           className: 'mw-page',
-          'data-view': selectedItem ? 'detail' : channel ? 'channel' : 'list',
+          'data-view': selectedItem ? 'detail' : chartView ? 'chart' : channel ? 'channel' : 'list',
           onKeyDown: event => {
             if (event.key === 'Escape' && !keyOpen && !settingsOpen) {
               if (selectedItem) backToResults()
@@ -2615,10 +3051,27 @@ window.__ModuleLoader__.load({
               item: selectedItem,
               onBack: backToResults,
             })
-            : channel
-              ? h(ChannelPage, {
+            : chartView
+              ? h(ChartPage, {
+                t: t,
+                view: chartView,
+                loadingMore: chartLoadingMore,
+                moreFailure: chartMoreFailure,
+                onBack: closeChart,
+                onRetry: retryChart,
+                onRefresh: retryChart,
+                onLoadMore: loadMoreChart,
+                onSelect: item => setSelectedItem(item),
+              })
+              : channel
+                ? h(ChannelPage, {
                 t: t,
                 state: channel,
+                lists: lists,
+                onOpenChart: openChart,
+                onRetryLists: () => {
+                  void loadCharts(true)
+                },
                 loadingMore: loadingMore,
                 moreFailure: moreFailure,
                 onBack: closeChannel,
