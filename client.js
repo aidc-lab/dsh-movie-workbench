@@ -124,6 +124,9 @@ window.__ModuleLoader__.load({
       'browse.end': '没有更多了',
       'browse.moreFailed': '加载更多失败',
       'browse.lists': '片单',
+      'lists.official': '官方榜单',
+      'lists.rating': '高分经典',
+      'lists.heat': '近期热门',
       'chart.back': '返回片单',
       'chart.count': '共 {count} 部',
       'chart.loading': '正在加载片单…',
@@ -234,6 +237,9 @@ window.__ModuleLoader__.load({
       'browse.end': 'No more titles',
       'browse.moreFailed': 'Could not load more',
       'browse.lists': 'Lists',
+      'lists.official': 'Official charts',
+      'lists.rating': 'Classic high scores',
+      'lists.heat': 'Recent hits',
       'chart.back': 'Back to lists',
       'chart.count': '{count} titles',
       'chart.loading': 'Loading lists…',
@@ -740,6 +746,9 @@ window.__ModuleLoader__.load({
       '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
       '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
       '.mw-more-sentinel{display:flex;justify-content:center;}',
+      '.mw-chart-section{margin-bottom:24px;}',
+      '.mw-chart-section:last-child{margin-bottom:8px;}',
+      '.mw-chart-section-title{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--dsw-alias-label-primary);}',
       '.mw-chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:0 0 8px;}',
       '.mw-chart-card{display:flex;flex-direction:column;padding:0;border:0.5px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;cursor:pointer;text-align:left;transition:border-color .15s ease,background-color .15s ease,transform .15s ease;}',
       '.mw-chart-card:hover{border-color:var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);transform:translateY(-2px);}',
@@ -1132,10 +1141,10 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'mw-grid' },
-            items.map(item => h(ResultCard, {
+            items.map((item, index) => h(ResultCard, {
               key: searchKey(item),
               t: t,
-              item: item,
+              item: item.rank ? item : { ...item, rank: index + 1 },
               showSource: false,
               onSelect: props.onSelect,
             })),
@@ -1257,6 +1266,36 @@ window.__ModuleLoader__.load({
       )
     }
 
+    const CHART_FAMILIES = ['official', 'rating', 'heat']
+
+    /**
+     * Group the chart catalog into its display sections. Official (subject
+     * collection) charts come first, then the generated 高分经典 / 近期热门
+     * genre charts; a catalog without `family` falls back to one untitled grid.
+     */
+    function chartSections(t, charts) {
+      const groups = new Map()
+      for (const chart of charts) {
+        const family = CHART_FAMILIES.indexOf(chart.family) === -1 ? 'all' : chart.family
+        if (!groups.has(family)) groups.set(family, [])
+        groups.get(family).push(chart)
+      }
+      if (groups.size === 1 && groups.has('all')) {
+        return [{ key: 'all', title: '', charts: groups.get('all') }]
+      }
+      const sections = []
+      for (const family of ['all', ...CHART_FAMILIES]) {
+        const entries = groups.get(family)
+        if (!entries || entries.length === 0) continue
+        sections.push({
+          key: family,
+          title: family === 'all' ? '' : t('lists.' + family),
+          charts: entries,
+        })
+      }
+      return sections
+    }
+
     /** The 片单 tab: official charts as cards, with loading/error/empty states. */
     function ChartGrid(props) {
       const t = props.t
@@ -1281,16 +1320,21 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         null,
-        h(
-          'div',
-          { className: 'mw-chart-grid' },
-          charts.map(chart => h(ChartCard, {
-            key: chart.id,
-            t: t,
-            chart: chart,
-            onOpen: props.onOpenChart,
-          })),
-        ),
+        chartSections(t, charts).map(section => h(
+          'section',
+          { key: section.key, className: 'mw-chart-section' },
+          section.title ? h('h3', { className: 'mw-chart-section-title' }, section.title) : null,
+          h(
+            'div',
+            { className: 'mw-chart-grid' },
+            section.charts.map(chart => h(ChartCard, {
+              key: chart.id,
+              t: t,
+              chart: chart,
+              onOpen: props.onOpenChart,
+            })),
+          ),
+        )),
         partialFailure
           ? h(
             'div',

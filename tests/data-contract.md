@@ -549,3 +549,48 @@ Keyless mobile web API with a `https://m.douban.com/` Referer:
 
 Chart metadata is cached in Host memory for 6 hours (bounded to 20 entries); rows
 are fetched per request so rankings stay current.
+
+## DouBan genre charts (extra 片单 entries) (v1.9)
+
+Beyond the six official charts, the 片单 tab also lists generated genre charts:
+27 Douban genres (情色 excluded) × two families — `S` (高分经典, high-score
+classics) and `U` (近期热门, recent hits). `/charts` therefore returns **60**
+entries: the six official charts (unchanged ids, `family: "official"`) followed
+by `genre:<genre>:<S|U>` entries with `family: "rating"` / `"heat"`.
+
+`/chart` accepts the generated ids in the same `id` parameter; every other
+request/response rule from v1.8 applies (validation, envelope, `items` row shape,
+`rank`, `subtitle`, `hasMore`, error codes).
+
+Field additions on every `/charts` entry:
+
+```json
+{ "family": "official" }   // official charts
+{ "family": "rating" }     // genre chart with sort=S (高分经典X片)
+{ "family": "heat" }       // genre chart with sort=U (近期热门X片)
+```
+
+Generated ids and titles:
+
+```json
+{ "id": "genre:喜剧:S", "title": "高分经典喜剧片", "family": "rating",
+  "subtitle": "分类榜单", "description": "按豆瓣评分优先", "total": null, "cover": null }
+{ "id": "genre:动作:U", "title": "近期热门动作片", "family": "heat" }
+```
+
+Rows for generated charts carry `rank: null` (the client numbers them by
+position) and `total` is capped at `500` (Douban caps the recommendation list at
+500; 动作's raw total is 501 because of a leading announcement card). The first
+upstream page at `start=0` may contain one announcement card (`type: "chart"`,
+no subject url); it is filtered out, so a `count=5` page can return 4 rows.
+
+### Upstream
+
+Generated charts use Douban's mobile recommendation list filtered by genre tag:
+
+- `GET https://m.douban.com/rexxar/api/v2/movie/recommend?refresh=0&start=&count=&selected_categories=%7B%7D&uncollect=false&tags=<genre>&sort=<S|U>`
+  with a `https://m.douban.com/movie/` Referer.
+
+Rows are fetched per request (no cache). The 分类排行榜 web page
+(`movie.douban.com/chart`, `/typerank`) is not used directly because it only
+exposes the `100:90` interval and has no high-score/recent split.

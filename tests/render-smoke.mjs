@@ -349,6 +349,7 @@ const LISTS = {
       description: '影迷必看的经典电影。',
       total: 250,
       cover: 'https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2936346968.jpg',
+      family: 'official',
     },
     {
       id: 'movie_weekly_best',
@@ -357,6 +358,25 @@ const LISTS = {
       description: '本周口碑新片。',
       total: 10,
       cover: null,
+      family: 'official',
+    },
+    {
+      id: 'genre:喜剧:S',
+      title: '高分经典喜剧片',
+      subtitle: '分类榜单',
+      description: '按豆瓣评分优先',
+      total: null,
+      cover: null,
+      family: 'rating',
+    },
+    {
+      id: 'genre:动作:U',
+      title: '近期热门动作片',
+      subtitle: '分类榜单',
+      description: '按近期热度优先',
+      total: null,
+      cover: null,
+      family: 'heat',
     },
   ],
   errors: [],
@@ -382,9 +402,14 @@ const listsChannelHtml = renderState('channel (lists)', `{ source: 'all', draft:
   ['mw-chart-desc', 'chart description'],
   ['共 250 部', 'chart total copy'],
   ['mw-chart-cover', 'chart cover block'],
+  ['官方榜单', 'official chart section heading'],
+  ['高分经典', 'high-score chart section heading'],
+  ['近期热门动作片', 'recent-hit genre chart card'],
+  ['mw-chart-section-title', 'chart section title styling'],
 ])
 assert.ok(!listsChannelHtml.includes('加载更多'), 'lists tab has no infinite-scroll footer')
 assert.ok(listsChannelHtml.includes('class="mw-chart-grid"'), 'lists tab renders the chart card grid')
+assert.strictEqual((listsChannelHtml.match(/class="mw-chart-grid"/g) || []).length, 3, 'lists tab groups charts into three sections')
 
 const RANKED = [
   { ...ITEMS[2], rank: 1, subtitle: '1994 / 美国 / 剧情 犯罪' },

@@ -13,8 +13,8 @@
  *   /trending?source=douban|imdb|all          (v1.1 idle recommendations)
  *   /trending?...&limit=24|abc|0|99           (v1.2 "see all" limit)
  *   /browse?source=douban|imdb|tmdb&category=&page=&cursor=   (v1.7 channel tabs + paging)
- *   /charts?source=douban                      (v1.8 official chart list)
- *   /chart?source=douban&id=&start=&count=     (v1.8 ranked chart titles)
+ *   /charts?source=douban                      (v1.9 official + genre chart list)
+ *   /chart?source=douban&id=&start=&count=     (v1.9 ranked chart titles)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
@@ -838,17 +838,38 @@ async function main() {
     /* ---------------- /charts + /chart (contract v1.8) ---------------- */
     const charts = await getJson(`${api}/charts?source=douban`)
     const chartList = Array.isArray(charts.body?.charts) ? charts.body.charts : []
+    const officialCharts = chartList.filter((chart) => chart.family === 'official')
+    const genreCharts = chartList.filter((chart) => chart.family === 'rating' || chart.family === 'heat')
     check(
-      'GET /charts?source=douban -> 200 ok:true with the six official charts',
+      'GET /charts?source=douban -> the six official charts plus 54 genre charts',
       charts.response.status === 200 &&
         charts.body?.ok === true &&
         charts.body?.source === 'douban' &&
-        chartList.length === 6 &&
-        chartList.map((chart) => chart.id).join(',') ===
+        chartList.length === 60 &&
+        officialCharts.length === 6 &&
+        officialCharts.map((chart) => chart.id).join(',') ===
           'movie_top250,movie_weekly_best,movie_real_time_hotest,tv_real_time_hotest,tv_chinese_best_weekly,tv_global_best_weekly' &&
-        chartList.every((chart) => typeof chart.title === 'string' && chart.title.length > 0) &&
+        genreCharts.length === 54 &&
+        chartList.every((chart) => typeof chart.title === 'string' && chart.title.length > 0 && typeof chart.family === 'string') &&
         Array.isArray(charts.body?.errors),
-      `HTTP ${charts.response.status}, charts=${chartList.length}`,
+      `HTTP ${charts.response.status}, charts=${chartList.length}, official=${officialCharts.length}, genre=${genreCharts.length}`,
+    )
+    const comedyChart = chartList.find((chart) => chart.id === 'genre:喜剧:S')
+    const actionChart = chartList.find((chart) => chart.id === 'genre:动作:U')
+    check(
+      'genre charts are titled 高分经典X片 / 近期热门X片 and grouped by family',
+      comedyChart?.title === '高分经典喜剧片' &&
+        comedyChart?.family === 'rating' &&
+        actionChart?.title === '近期热门动作片' &&
+        actionChart?.family === 'heat' &&
+        genreCharts.filter((chart) => chart.family === 'rating').length === 27 &&
+        genreCharts.filter((chart) => chart.family === 'heat').length === 27,
+      JSON.stringify({
+        comedy: comedyChart?.title,
+        action: actionChart?.title,
+        rating: genreCharts.filter((chart) => chart.family === 'rating').length,
+        heat: genreCharts.filter((chart) => chart.family === 'heat').length,
+      }),
     )
     check(
       'chart metadata carries a cover, a description and a total',
@@ -900,6 +921,59 @@ async function main() {
         chartLastPage.body.items.length === 5 &&
         chartLastPage.body.items[4]?.rank === 250,
       `HTTP ${chartLastPage.response.status}, rows=${chartLastPage.body?.items?.length}, lastRank=${chartLastPage.body?.items?.[4]?.rank}`,
+    )
+
+    const genreId = encodeURIComponent('genre:动作:U')
+    const genrePageOne = await getJson(
+      `${api}/chart?source=douban&id=${genreId}&start=0&count=5`,
+    )
+    const genreRows = Array.isArray(genrePageOne.body?.items) ? genrePageOne.body.items : []
+    check(
+      'GET /chart genre:动作:U start=0 -> recent-hot rows with a capped total',
+      genrePageOne.response.status === 200 &&
+        genrePageOne.body?.ok === true &&
+        genrePageOne.body?.id === 'genre:动作:U' &&
+        Number.isInteger(genrePageOne.body?.total) &&
+        genrePageOne.body.total <= 500 &&
+        genrePageOne.body?.hasMore === true &&
+        genreRows.length >= 4 &&
+        genreRows.length <= 5 &&
+        genreRows.every(isNormalizedResult) &&
+        genreRows.every((row) => row.source === 'douban' && row.rank === null),
+      `HTTP ${genrePageOne.response.status}, rows=${genreRows.length}, total=${genrePageOne.body?.total}`,
+    )
+    const genrePageTwo = await getJson(
+      `${api}/chart?source=douban&id=${genreId}&start=20&count=5`,
+    )
+    const genrePageTwoRows = Array.isArray(genrePageTwo.body?.items) ? genrePageTwo.body.items : []
+    check(
+      'GET /chart genre:动作:U start=20 -> the next rows do not repeat page one',
+      genrePageTwo.response.status === 200 &&
+        genrePageTwoRows.length >= 4 &&
+        genrePageTwoRows.length <= 5 &&
+        genrePageTwoRows.every((row) => !genreRows.some((first) => first.id === row.id)),
+      `HTTP ${genrePageTwo.response.status}, rows=${genrePageTwoRows.length}`,
+    )
+    const comedyGenreChart = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('genre:喜剧:S')}&start=0&count=5`,
+    )
+    check(
+      'GET /chart genre:喜剧:S -> high-score comedy rows',
+      comedyGenreChart.response.status === 200 &&
+        comedyGenreChart.body?.ok === true &&
+        Array.isArray(comedyGenreChart.body?.items) &&
+        comedyGenreChart.body.items.length >= 4 &&
+        comedyGenreChart.body.items.length <= 5 &&
+        comedyGenreChart.body.items.every(isNormalizedResult),
+      `HTTP ${comedyGenreChart.response.status}, rows=${comedyGenreChart.body?.items?.length}`,
+    )
+    const badGenreChart = await getJson(
+      `${api}/chart?source=douban&id=${encodeURIComponent('genre:不存在:U')}`,
+    )
+    check(
+      'chart unknown genre -> 400 bad_chart',
+      badGenreChart.response.status === 400 && badGenreChart.body?.code === 'bad_chart',
+      `HTTP ${badGenreChart.response.status}`,
     )
 
     const chartBadId = await getJson(`${api}/chart?source=douban&id=nope`)
