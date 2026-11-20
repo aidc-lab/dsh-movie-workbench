@@ -1117,9 +1117,6 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'mw-channel-head' },
           h('h2', { className: 'mw-channel-title' }, label),
-          state.status === 'done'
-            ? h('span', { className: 'mw-channel-meta' }, t('results.count', { count: items.length }))
-            : null,
           h(
             'button',
             { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onRefresh },

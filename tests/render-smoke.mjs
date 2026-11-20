@@ -318,7 +318,6 @@ const channelHtml = renderState('channel', `{ source: 'all', draft: '', data: nu
   ['返回推荐', 'channel back label'],
   ['mw-channel-title', 'channel heading'],
   ['豆瓣 · 电影', 'channel heading text'],
-  ['mw-channel-meta', 'channel row count'],
   ['class="mw-tabs"', 'channel category tabs'],
   ['role="tab"', 'channel tab buttons'],
   ['data-selected="true"', 'active tab marker'],
@@ -330,6 +329,7 @@ const channelHtml = renderState('channel', `{ source: 'all', draft: '', data: nu
 ])
 assert.ok(!channelHtml.includes('mw-detail-page') === false, 'channel page uses the page container')
 assert.ok(channelHtml.includes('class="mw-back"'), 'channel page has a back control')
+assert.ok(!channelHtml.includes('部作品'), 'channel page hides the result count copy')
 
 const CHANNEL_END = { ...CHANNEL, page: 3, hasMore: false }
 const channelEndHtml = renderState('channel (end)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(CHANNEL_END)}, channels: {} }`, [
