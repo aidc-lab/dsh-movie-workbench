@@ -21,10 +21,15 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   Generated charts use their first title's poster as the card cover. Open a chart to see the
   ranked titles with the same paged infinite scroll.
 - **Related sections on the detail page** — TMDB collections, IMDb related titles and
-  DouBan charts are all shown as the same inline card: a cover, a name and a small meta
-  line. A TMDB collection opens the collection page; an IMDb 相关系列 card opens the
-  related-series page in release order; each DouBan 收录于榜单 card opens that chart's
-  ranked titles directly.
+  DouBan charts sit in a right-hand rail on the title page as the same compact card:
+  a cover, a name and a small meta line. A TMDB collection opens the collection page;
+  an IMDb 相关系列 card opens the related-series page in release order; each DouBan
+  收录于榜单 card opens that chart's ranked titles directly. The middle column and the
+  synopsis use the full remaining width, and the rail stacks below the title on narrow
+  panels.
+- **Detail metadata** — the title page shows country/region, genres and runtime under
+  the rating tags: DouBan details come from the subject API, TMDB details from the movie
+  endpoint, and IMDb details from its browser GraphQL endpoint.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 
@@ -69,7 +74,7 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /browse?source=&category=&page=&cursor=&lang=` | one page (20 items) of a channel browse category; returns `hasMore` and, for IMDb, an opaque `next` cursor for infinite scroll |
 | `GET /charts?source=douban&kind=movie\|tv` | one chart catalog: `movie` (default) has 3 official charts with live metadata, 10 annual charts (高分/热门 for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (94 total); `tv` has 3 official, 10 annual and 54 genre charts (67 total, no hidden gems) |
 | `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, `genre:<genre>:<S or U>`, or the TV forms `tv-year:<yyyy>:<S or U>` / `tv-genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
-| `GET /detail?source=douban\|tmdb&id=` | synopsis and metadata for a DouBan title, or the collection reference of a TMDB movie |
+| `GET /detail?source=douban\|tmdb\|imdb&id=` | synopsis and metadata (country/region, genres, runtime) for a DouBan title, the collection reference of a TMDB movie, or an IMDb title's metadata |
 | `GET /collection?source=tmdb&id=` | every part of a TMDB collection, as normalized movie results |
 | `GET /series?source=imdb&id=` | the IMDb connection chain of one title (follows / followed by / spin-off), ordered by release year |
 | `GET /chart?source=douban&id=collection:<id>` | one of the official charts a DouBan title is listed in, with the same ranked envelope as other charts |

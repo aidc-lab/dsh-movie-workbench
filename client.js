@@ -187,6 +187,10 @@ window.__ModuleLoader__.load({
       'notice.setKey': '设置 Key',
       'detail.back': '返回结果',
       'detail.overview': '简介',
+      'detail.region': '国家/地区',
+      'detail.genres': '分类',
+      'detail.runtime': '片长',
+      'detail.runtimeMinutes': '{count} 分钟',
       'detail.overviewLoading': '简介加载中…',
       'detail.noOverview': '该渠道没有提供简介。',
       'detail.open': '在 {source} 查看',
@@ -323,6 +327,10 @@ window.__ModuleLoader__.load({
       'notice.setKey': 'Set key',
       'detail.back': 'Back to results',
       'detail.overview': 'Overview',
+      'detail.region': 'Country/region',
+      'detail.genres': 'Genres',
+      'detail.runtime': 'Runtime',
+      'detail.runtimeMinutes': '{count} min',
       'detail.overviewLoading': 'Loading overview…',
       'detail.noOverview': 'This channel returned no overview.',
       'detail.open': 'Open on {source}',
@@ -805,7 +813,8 @@ window.__ModuleLoader__.load({
       '.mw-item-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}',
       '.mw-item-section{margin-bottom:18px;}',
       '.mw-item-label{margin:0 0 6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);}',
-      '.mw-item-text{margin:0;max-width:72ch;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);}',
+      '.mw-item-text{margin:0;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);}',
+      '.mw-item-facts{margin:-8px 0 18px;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary);}',
       '.mw-item-text[data-empty="true"]{color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));}',
       '.mw-item-text[data-loading="true"]{animation:mw-pulse 1.4s ease-in-out infinite;}',
       '.mw-item-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;}',
@@ -2252,6 +2261,15 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function detailMeta(detail) {
+      if (!detail || typeof detail !== 'object') return null
+      const genres = Array.isArray(detail.genres) ? detail.genres.filter(Boolean) : []
+      const region = typeof detail.region === 'string' ? detail.region.trim() : ''
+      const runtime = detail.runtime || ''
+      if (!region && genres.length === 0 && !runtime) return null
+      return { region, genres, runtime }
+    }
+
     function DetailPage(props) {
       const t = props.t
       const item = props.item
@@ -2275,6 +2293,9 @@ window.__ModuleLoader__.load({
       const [series, setSeries] = useState(
         (cachedDetail && cachedDetail.series) || null,
       )
+      const [meta, setMeta] = useState(
+        (cachedDetail && cachedDetail.meta) || null,
+      )
       const [overviewPhase, setOverviewPhase] = useState(() => {
         if (item.overview) return 'done'
         if (cachedDetail) return cachedDetail.overview ? 'done' : 'missing'
@@ -2284,7 +2305,8 @@ window.__ModuleLoader__.load({
       // lazily from the subject detail route when the page opens for a title.
       useEffect(() => {
         if (item.overview || item.source !== 'douban') return undefined
-        if (session.details && session.details[cacheKey]) return undefined
+        const cached = session.details && session.details[cacheKey]
+        if (cached && 'meta' in cached) return undefined
         let cancelled = false
         setOverviewPhase('loading')
         callApi('/detail?source=douban&id=' + encodeURIComponent(String(item.id)))
@@ -2293,20 +2315,23 @@ window.__ModuleLoader__.load({
             const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
             const text = detail && typeof detail.overview === 'string' ? detail.overview.trim() : ''
             const collections = detail && Array.isArray(detail.collections) ? detail.collections : []
+            const foundMeta = detail ? detailMeta(detail) : null
             if (!session.details) session.details = {}
             session.details[cacheKey] = {
               ...(session.details[cacheKey] || {}),
               overview: text,
               collections: collections,
+              meta: foundMeta,
             }
             setOverview(text)
             setRankings(collections)
+            setMeta(foundMeta)
             setOverviewPhase(text ? 'done' : 'missing')
           })
           .catch(() => {
             if (cancelled) return
             if (!session.details) session.details = {}
-            session.details[cacheKey] = { overview: '' }
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), overview: '' }
             setOverviewPhase('missing')
           })
         return () => {
@@ -2318,7 +2343,7 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         if (item.source !== 'tmdb' || item.kind !== 'movie') return undefined
         const hit = session.details && session.details[cacheKey]
-        if (hit && 'collection' in hit) return undefined
+        if (hit && 'collection' in hit && 'meta' in hit) return undefined
         let cancelled = false
         const headers = { accept: 'application/json' }
         const storedKey = readTmdbKey()
@@ -2334,11 +2359,17 @@ window.__ModuleLoader__.load({
             // so saving a key and reopening the title fetches again.
             const errors = body && Array.isArray(body.errors) ? body.errors : []
             const keyMissing = errors.some(error => error && error.code === 'tmdb_key_missing')
+            const foundMeta = detail ? detailMeta(detail) : null
             if (!session.details) session.details = {}
             if (!keyMissing) {
-              session.details[cacheKey] = { ...(session.details[cacheKey] || {}), collection: found }
+              session.details[cacheKey] = {
+                ...(session.details[cacheKey] || {}),
+                collection: found,
+                meta: foundMeta,
+              }
             }
             setCollection(found)
+            setMeta(foundMeta)
           })
           .catch(() => {
             if (cancelled) return
@@ -2376,6 +2407,39 @@ window.__ModuleLoader__.load({
         }
       }, [cacheKey, item.source, item.id])
 
+      // IMDb detail metadata (origin countries, genres, runtime and the real
+      // plot) comes from the same browser GraphQL endpoint as the search feed.
+      useEffect(() => {
+        if (item.source !== 'imdb') return undefined
+        const hit = session.details && session.details[cacheKey]
+        if (hit && hit.meta !== undefined) {
+          setMeta(hit.meta || null)
+          return undefined
+        }
+        let cancelled = false
+        callApi('/detail?source=imdb&id=' + encodeURIComponent(String(item.id)))
+          .then((body) => {
+            if (cancelled) return
+            const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
+            const foundMeta = detail ? detailMeta(detail) : null
+            if (!session.details) session.details = {}
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), meta: foundMeta }
+            setMeta(foundMeta)
+            const plot = detail && typeof detail.overview === 'string' ? detail.overview.trim() : ''
+            if (plot) {
+              setOverview(plot)
+              setOverviewPhase('done')
+            }
+          })
+          .catch(() => {
+            if (cancelled) return
+            setMeta(null)
+          })
+        return () => {
+          cancelled = true
+        }
+      }, [cacheKey, item.source, item.id])
+
       const tags = []
       if (item.year) tags.push(h('span', { className: 'mw-tag', key: 'year' }, String(item.year)))
       tags.push(h('span', { className: 'mw-tag', key: 'kind' }, kindLabel(t, item.kind)))
@@ -2389,6 +2453,18 @@ window.__ModuleLoader__.load({
           item.votes ? ' · ' + t('detail.votes', { count: item.votes }) : '',
         ))
       }
+      const factParts = []
+      if (meta && meta.region) factParts.push(t('detail.region') + ' ' + meta.region)
+      if (meta && Array.isArray(meta.genres) && meta.genres.length > 0) {
+        factParts.push(t('detail.genres') + ' ' + meta.genres.join(' / '))
+      }
+      if (meta && meta.runtime) {
+        const runtimeText = typeof meta.runtime === 'number'
+          ? t('detail.runtimeMinutes', { count: meta.runtime })
+          : String(meta.runtime)
+        factParts.push(t('detail.runtime') + ' ' + runtimeText)
+      }
+      const factsText = factParts.join(' · ')
       const original = item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : ''
       const relatedSections = []
       if (collection) {
@@ -2452,6 +2528,7 @@ window.__ModuleLoader__.load({
             h('h2', { className: 'mw-item-title' }, item.title || item.originalTitle || item.id),
             original ? h('p', { className: 'mw-item-original' }, original) : null,
             h('div', { className: 'mw-item-tags' }, tags),
+            factsText ? h('p', { className: 'mw-item-facts' }, factsText) : null,
             h(
               'div',
               { className: 'mw-item-section' },

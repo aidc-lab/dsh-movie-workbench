@@ -18,6 +18,7 @@
  *   /chart?id=collection:<doubanCollectionId>  (v1.14 a title's 收录于榜单)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /detail?source=tmdb&id=<id>               (v1.13 TMDB collection lookup)
+ *   /detail?source=imdb&id=<tt-id>            (v1.15 IMDb metadata)
  *   /collection?source=tmdb&id=<id>           (v1.13 collection parts)
  *   /series?source=imdb&id=<ttid>             (v1.14 IMDb connection chain)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
@@ -37,6 +38,7 @@ import { createHandler } from '../lib/host.js'
 import {
   DEFAULT_USER_AGENT,
   IMDB_TRENDING_SEEDS,
+  normalizeImdbDetail,
   normalizeTmdbBrowseItem,
   normalizeTmdbCollection,
   normalizeTmdbMovieDetail,
@@ -1341,7 +1343,7 @@ async function main() {
       detailNoSource.response.status === 400 && detailNoSource.body?.code === 'bad_source',
       `HTTP ${detailNoSource.response.status}, code=${detailNoSource.body?.code}`,
     )
-    const detailBadSource = await getJson(`${api}/detail?source=imdb&id=1889243`)
+    const detailBadSource = await getJson(`${api}/detail?source=nope&id=1889243`)
     check(
       'detail with an unsupported source -> 400 bad_source',
       detailBadSource.response.status === 400 && detailBadSource.body?.code === 'bad_source',
@@ -1417,6 +1419,11 @@ async function main() {
       release_date: '2014-11-05',
       overview: '一队探险家…',
       belongs_to_collection: { id: 86311, name: '星际穿越合集', poster_path: '/abc.jpg' },
+      genres: [{ id: 12, name: '冒险' }, { id: 18, name: '剧情' }],
+      production_countries: [{ iso_3166_1: 'US', name: '美国' }, { iso_3166_1: 'GB', name: '英国' }],
+      runtime: 169,
+      vote_average: 8.4,
+      vote_count: 35000,
     }
     const normalizedDetail = normalizeTmdbMovieDetail(movieDetailFixture, '157336')
     check(
@@ -1426,6 +1433,15 @@ async function main() {
         typeof normalizedDetail?.collection?.poster === 'string' &&
         normalizedDetail.collection.poster.startsWith('https://image.tmdb.org/t/p/w342/'),
       `collection=${JSON.stringify(normalizedDetail?.collection)}`,
+    )
+    check(
+      'normalizeTmdbMovieDetail maps genres, countries and runtime',
+      normalizedDetail?.genres?.join(',') === '冒险,剧情' &&
+        normalizedDetail?.region === '美国 / 英国' &&
+        normalizedDetail?.runtime === 169 &&
+        normalizedDetail?.rating === 8.4 &&
+        normalizedDetail?.votes === 35000,
+      `genres=${JSON.stringify(normalizedDetail?.genres)}, region=${normalizedDetail?.region}, runtime=${normalizedDetail?.runtime}`,
     )
     const collectionFixture = {
       id: 86311,
@@ -1448,6 +1464,57 @@ async function main() {
         typeof normalizedCollection.items[0].poster === 'string' &&
         typeof normalizedCollection.cover === 'string',
       `items=${normalizedCollection?.items?.map(item => item.title).join(',')}`,
+    )
+
+    /* ---------------- /detail imdb metadata (contract v1.15) ---------------- */
+    const imdbDetail = await getJson(`${api}/detail?source=imdb&id=tt0848228`)
+    check(
+      'GET /detail?source=imdb&id=tt0848228 -> 200 with genres, region and runtime',
+      imdbDetail.response.status === 200 &&
+        imdbDetail.body?.ok === true &&
+        imdbDetail.body?.source === 'imdb' &&
+        imdbDetail.body?.detail &&
+        imdbDetail.body.detail.title === 'The Avengers' &&
+        Array.isArray(imdbDetail.body.detail.genres) &&
+        imdbDetail.body.detail.genres.length > 0 &&
+        typeof imdbDetail.body.detail.region === 'string' &&
+        imdbDetail.body.detail.region.length > 0 &&
+        Number.isInteger(imdbDetail.body.detail.runtime) &&
+        imdbDetail.body.detail.runtime > 0 &&
+        typeof imdbDetail.body.detail.overview === 'string' &&
+        imdbDetail.body.detail.overview.length > 0,
+      `genres=${JSON.stringify(imdbDetail.body?.detail?.genres)}, region=${imdbDetail.body?.detail?.region}`,
+    )
+    const imdbDetailBadId = await getJson(`${api}/detail?source=imdb&id=1889243`)
+    check(
+      'detail source=imdb with a non-tt id -> 400 bad_id',
+      imdbDetailBadId.response.status === 400 && imdbDetailBadId.body?.code === 'bad_id',
+      `HTTP ${imdbDetailBadId.response.status}, code=${imdbDetailBadId.body?.code}`,
+    )
+
+    // Offline IMDb detail normalizer: the same GraphQL title node shape maps
+    // into the shared detail contract (genres, countries, runtime minutes).
+    const imdbDetailFixture = {
+      id: 'tt0848228',
+      titleText: { text: 'The Avengers' },
+      originalTitleText: { text: 'The Avengers' },
+      releaseYear: { year: 2012 },
+      titleType: { id: 'movie' },
+      ratingsSummary: { aggregateRating: 8, voteCount: 1593640 },
+      plot: { plotText: { plainText: '地球上最强大的英雄们必须联合起来。' } },
+      genres: { genres: [{ id: 'Action', text: 'Action' }, { id: 'Sci-Fi', text: 'Sci-Fi' }] },
+      countriesOfOrigin: { countries: [{ id: 'US', text: 'United States' }] },
+      runtime: { seconds: 8580 },
+    }
+    const normalizedImdbDetail = normalizeImdbDetail(imdbDetailFixture)
+    check(
+      'normalizeImdbDetail maps genres, origin countries and runtime',
+      normalizedImdbDetail.id === 'tt0848228' &&
+        normalizedImdbDetail.genres.join(',') === 'Action,Sci-Fi' &&
+        normalizedImdbDetail.region === 'United States' &&
+        normalizedImdbDetail.runtime === 143 &&
+        normalizedImdbDetail.rating === 8,
+      `genres=${JSON.stringify(normalizedImdbDetail?.genres)}, region=${normalizedImdbDetail?.region}, runtime=${normalizedImdbDetail?.runtime}`,
     )
 
     /* ---------------- bad requests / envelopes ---------------- */

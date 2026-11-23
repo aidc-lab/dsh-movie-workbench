@@ -826,3 +826,33 @@ related-series page (`data-view="series"`) or, for a DouBan chart, the chart pag
 (`data-view="chart"`) directly — its back button (返回详情) returns to the title.
 Covered by render-smoke states `detail (collection)`, `detail (series)`,
 `detail (rankings)`, `collection` and `series`.
+
+## Detail metadata (v1.15)
+
+`GET /detail?source=` now accepts `douban`, `tmdb` and `imdb`.
+
+- `imdb` ids are IMDb title ids (`tt` + digits); anything else is `400 bad_id`.
+  The host queries IMDb's browser GraphQL endpoint without a credential and
+  normalizes a `title` node into the shared detail shape:
+
+  ```json
+  { "ok": true, "source": "imdb", "id": "tt0848228", "tookMs": 120,
+    "detail": { "id": "tt0848228", "title": "The Avengers",
+      "originalTitle": "The Avengers", "kind": "movie", "year": 2012,
+      "overview": "…", "rating": 8, "votes": 1593640,
+      "genres": ["Action", "Sci-Fi"], "region": "United States",
+      "runtime": 143 },
+    "errors": [] }
+  ```
+
+- Provider failures (and an unknown title) answer `200` with `detail: null`
+  and a populated `errors[]`; the same is true for the keyless `tmdb` case.
+- `douban` detail already carried `genres`, `region`, `runtime`, `rating` and
+  `votes`; `tmdb` detail now also returns `originalTitle`, `genres`,
+  `region`, `runtime` (minutes), `rating` and `votes` alongside `collection`.
+- `runtime` is a number of minutes for TMDB/IMDb and a localized string
+  (e.g. `169分钟`) for DouBan; the browser half formats numbers with
+  `detail.runtimeMinutes` and shows `国家/地区`, `分类` and `片长` under the
+  rating tags in a `.mw-item-facts` line. The synopsis line is no longer
+  width-capped (`max-width:72ch` removed), so wide panels use the full
+  middle column.
