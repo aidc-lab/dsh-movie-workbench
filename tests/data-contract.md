@@ -764,3 +764,56 @@ collection. The collection and its parts are cached in the session, and the
 page is covered by `tests/render-smoke.mjs` states `detail (collection)` and
 `collection`.
 
+### `GET /movie-workbench/api/series?source=imdb&id=<tt id>`
+
+`source` is required and must be `imdb` (`400 bad_source`); `id` is required
+(`400 empty_id`) and must match `tt` + digits (`400 bad_id`). A well-formed
+request always answers `200`:
+
+```json
+{ "ok": true, "source": "imdb", "id": "tt2395427", "tookMs": 720,
+  "series": { "id": "tt2395427", "title": "Avengers: Age of Ultron",
+    "cover": "https://m.media-amazon.com/images/M/…jpg",
+    "truncated": false,
+    "items": [ { "source": "imdb", "id": "tt0848228", "title": "The Avengers", "…": "…" } ] },
+  "errors": [] }
+```
+
+`items` mixes the title itself with its `follows`, `followed_by`, `spin_off` and
+`spin_off_from` connections, deduplicated and sorted by release year (null years
+last) then title. Upstream is IMDb's browser GraphQL `title(id).connections`
+(250 relations per page, at most 5 pages; `truncated` is true when that cap is
+hit). A provider failure yields `series: null` plus an `errors` entry.
+
+### `GET /movie-workbench/api/chart?source=douban&id=collection:<collection id>&start=&count=`
+
+Besides the chart id forms above, `id` accepts `collection:<raw subject
+collection id>` (letters, digits and `_`). That opens one of the official charts
+a DouBan title is listed in (the ids come from `/detail?source=douban`, field
+`collections`). Validation, paging and the response shape are identical to the
+other chart ids, except the envelope also carries the chart metadata:
+
+```json
+{ "ok": true, "source": "douban", "id": "collection:film_genre_49",
+  "chart": { "id": "film_genre_49", "title": "高分经典冒险片榜",
+    "subtitle": "豆瓣榜单", "description": "…", "total": 50, "cover": "https://…" },
+  "start": 0, "pageSize": 20, "total": 50,
+  "items": [ { "source": "douban", "id": "…", "rank": 1, "…": "…" } ],
+  "hasMore": true, "errors": [] }
+```
+
+`chart` is `null` when the metadata request failed; other chart ids keep
+`chart: null` as well.
+
+### Browser half
+
+IMDb detail pages lazily fetch `/series?source=imdb&id=` and render a 相关系列
+card (the same visual card as TMDB collections). Opening it renders the series
+page (`data-view="series"`) with a 返回详情 back button; opening a part shows
+that title's detail page and its back button returns to the series page.
+
+DouBan detail pages render the `collections` array from `/detail?source=douban`
+as 收录于榜单 chips under the actions; clicking a chip opens the existing chart
+page (`data-view="chart"`), whose back button returns to the detail page.
+Covered by render-smoke states `detail (series)`, `series` and
+`detail (rankings)`.

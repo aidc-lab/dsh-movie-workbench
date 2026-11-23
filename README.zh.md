@@ -19,6 +19,10 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
   无封面的榜单自动取第一名作品的封面，点开榜单按排名展示影片，同样支持下滑加载更多。
 - **TMDB 合集** — 电影属于某个合集时，详情页会展示所属合集；点进去可以查看合集里的
   全部作品，并继续打开任意一部。
+- **IMDb 相关系列** — IMDb 条目详情页会展示相关系列（前作 / 续作 / 衍生），点开
+  「查看系列」可以按上映年份浏览全部相关作品，并继续打开任意一部。
+- **豆瓣收录于榜单** — 豆瓣条目详情页会列出该条目收录的官方榜单（收录于榜单），
+  点任意标签即可查看该榜单的排名影片。
 - **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序，支持下滑/「加载更多」分页；
   可复制磁力链接或打开来源页。
 
@@ -63,6 +67,8 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `GET /chart?source=douban&id=&start=&count=` | 某个榜单的一页按排名条目；`id` 为官方榜单 id、`year:<年份>:<S 或 U>`、`hidden:<类型>`、`genre:<类型>:<S 或 U>`，以及剧集形式 `tv-year:<年份>:<S 或 U>` / `tv-genre:<类型>:<S 或 U>`（S 高分经典，U 近期热门） |
 | `GET /detail?source=douban\|tmdb&id=` | 豆瓣条目的简介与元数据，或 TMDB 电影所属的合集信息 |
 | `GET /collection?source=tmdb&id=` | TMDB 合集里的全部作品（归一化电影结果） |
+| `GET /series?source=imdb&id=` | 单个 IMDb 条目的相关系列（前作 / 续作 / 衍生），按上映年份排序 |
+| `GET /chart?source=douban&id=collection:<id>` | 豆瓣条目收录的某个官方榜单，返回结构与其他榜单一致 |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT 资源搜索；返回一页结果（`page` 1–20）及 `hasMore` 供下滑加载 |
 | `GET /image?url=` | 代理白名单图床的海报 |
 
@@ -89,7 +95,9 @@ TMDB 需要凭据：可设置 `tmdbApiKey`，或在面板的 Key 控件里粘贴
   `api.themoviedb.org`、`v2.sg.media-imdb.com`、`movie.douban.com`、`bt4gprx.com`、
   `bitsearch.to` 及海报图床。
 - IMDb 搜索结果没有评分；豆瓣推荐带公开的 `rate`；TMDB 提供评分与票数。
-- 渠道浏览每页 20 条、最多 10 页；IMDb 浏览页基于精选种子列表经 suggestion API 解析，
+- IMDb 相关系列来自 IMDb 浏览器 GraphQL 的 `connections` 字段（单个条目最多 1250 条关系）；
+  豆瓣收录于榜单来自条目详情里的 `subject_collections` 字段。
+- 渠道浏览每页 20 条、最多 100 页；IMDb 浏览页基于精选种子列表经 suggestion API 解析，
   因此一页可能不足 20 条。
 - suggestion、rexxar、BT4G 与 BitSearch 都是未公开接口，可能变更或限流；失败时按渠道
   单独提示，不影响其他渠道。

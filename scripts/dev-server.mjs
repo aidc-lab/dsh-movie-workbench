@@ -15,9 +15,11 @@
  *   /browse?source=douban|imdb|tmdb&category=&page=&cursor=   (v1.7 channel tabs + paging)
  *   /charts?source=douban&kind=movie|tv          (v1.11 movie / TV chart lists)
  *   /chart?source=douban&id=&start=&count=     (v1.9 ranked chart titles)
+ *   /chart?id=collection:<doubanCollectionId>  (v1.14 a title's 收录于榜单)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
  *   /detail?source=tmdb&id=<id>               (v1.13 TMDB collection lookup)
  *   /collection?source=tmdb&id=<id>           (v1.13 collection parts)
+ *   /series?source=imdb&id=<ttid>             (v1.14 IMDb connection chain)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
  *
@@ -1152,6 +1154,85 @@ async function main() {
       chartsBadKind.response.status === 400 && chartsBadKind.body?.code === 'bad_kind',
       `HTTP ${chartsBadKind.response.status}`,
     )
+
+    /* ---------------- /series IMDb (contract v1.14) ---------------- */
+    const imdbSeries = await getJson(`${api}/series?source=imdb&id=tt2395427`)
+    const imdbSeriesBody = imdbSeries.body?.series
+    const imdbSeriesItems = Array.isArray(imdbSeriesBody?.items) ? imdbSeriesBody.items : []
+    check(
+      'GET /series?source=imdb&id=tt2395427 -> 200 with the connection chain',
+      imdbSeries.response.status === 200 &&
+        imdbSeries.body?.ok === true &&
+        imdbSeries.body?.source === 'imdb' &&
+        imdbSeriesBody &&
+        imdbSeriesBody.id === 'tt2395427' &&
+        typeof imdbSeriesBody.title === 'string' &&
+        imdbSeriesItems.length >= 4 &&
+        imdbSeriesItems.some((row) => row.id === 'tt2395427') &&
+        imdbSeriesItems.every(isNormalizedResult) &&
+        Array.isArray(imdbSeries.body?.errors) &&
+        imdbSeries.body.errors.length === 0,
+      `HTTP ${imdbSeries.response.status}, items=${imdbSeriesItems.length}`,
+    )
+    check(
+      'series rows are year-ordered and include the original and a sequel',
+      (() => {
+        const years = imdbSeriesItems
+          .map((row) => (Number.isInteger(row.year) ? row.year : null))
+          .filter((year) => year !== null)
+        const sorted = years.slice().sort((a, b) => a - b)
+        return (
+          years.join(',') === sorted.join(',') &&
+          imdbSeriesItems.some((row) => row.id === 'tt0848228') &&
+          imdbSeriesItems.some((row) => row.id === 'tt4154756')
+        )
+      })(),
+      imdbSeriesItems.map((row) => `${row.id}:${row.year || '?'}`).join(','),
+    )
+    const seriesNoId = await getJson(`${api}/series?source=imdb`)
+    check(
+      'series without id -> 400 empty_id',
+      seriesNoId.response.status === 400 && seriesNoId.body?.code === 'empty_id',
+      `HTTP ${seriesNoId.response.status}, code=${seriesNoId.body?.code}`,
+    )
+    const seriesBadId = await getJson(`${api}/series?source=imdb&id=abc`)
+    check(
+      'series with a non-TT id -> 400 bad_id',
+      seriesBadId.response.status === 400 && seriesBadId.body?.code === 'bad_id',
+      `HTTP ${seriesBadId.response.status}, code=${seriesBadId.body?.code}`,
+    )
+    const seriesBadSource = await getJson(`${api}/series?source=douban&id=tt2395427`)
+    check(
+      'series with an unsupported source -> 400 bad_source',
+      seriesBadSource.response.status === 400 && seriesBadSource.body?.code === 'bad_source',
+      `HTTP ${seriesBadSource.response.status}, code=${seriesBadSource.body?.code}`,
+    )
+
+    /* ---------------- /chart collection:<id> (contract v1.14) ---------------- */
+    const rankingChart = await getJson(
+      `${api}/chart?source=douban&id=collection:film_genre_49&start=0&count=5`,
+    )
+    const rankingRows = Array.isArray(rankingChart.body?.items) ? rankingChart.body.items : []
+    check(
+      'GET /chart?id=collection:film_genre_49 -> chart metadata plus five rows',
+      rankingChart.response.status === 200 &&
+        rankingChart.body?.ok === true &&
+        typeof rankingChart.body?.chart?.title === 'string' &&
+        rankingChart.body.chart.title.length > 0 &&
+        typeof rankingChart.body?.chart?.description === 'string' &&
+        Number.isInteger(rankingChart.body?.total) &&
+        rankingChart.body.total > 0 &&
+        rankingRows.length === 5 &&
+        rankingRows.every(isNormalizedResult),
+      `HTTP ${rankingChart.response.status}, chart=${JSON.stringify(rankingChart.body?.chart?.title)}, rows=${rankingRows.length}, total=${rankingChart.body?.total}`,
+    )
+    const rankingBadId = await getJson(`${api}/chart?source=douban&id=collection:bad!!`)
+    check(
+      'chart with an invalid collection id -> 400 bad_chart',
+      rankingBadId.response.status === 400 && rankingBadId.body?.code === 'bad_chart',
+      `HTTP ${rankingBadId.response.status}, code=${rankingBadId.body?.code}`,
+    )
+
     info(
       'charts sample',
       chartList
@@ -1230,6 +1311,18 @@ async function main() {
         typeof detailBody?.runtime === 'string' &&
         typeof detailBody?.region === 'string',
       `genres=${JSON.stringify(detailBody?.genres)}, runtime=${JSON.stringify(detailBody?.runtime)}`,
+    )
+    const avengersDetail = await getJson(`${api}/detail?source=douban&id=1866479`)
+    check(
+      'douban detail reports the official charts the title is listed in',
+      avengersDetail.response.status === 200 &&
+        avengersDetail.body?.ok === true &&
+        Array.isArray(avengersDetail.body?.detail?.collections) &&
+        avengersDetail.body.detail.collections.length === 3 &&
+        avengersDetail.body.detail.collections.every(
+          (entry) => typeof entry.id === 'string' && typeof entry.title === 'string',
+        ),
+      JSON.stringify(avengersDetail.body?.detail?.collections?.map((entry) => entry.title)),
     )
     const detailCached = await getJson(`${api}/detail?source=douban&id=1889243`)
     check(

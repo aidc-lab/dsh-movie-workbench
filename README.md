@@ -22,6 +22,11 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   ranked titles with the same paged infinite scroll.
 - **TMDB collections** — when a movie belongs to a franchise, its detail page shows the
   collection; open it to browse every part of the collection and jump into any title.
+- **IMDb related titles** — an IMDb title's detail page shows its connection chain
+  (follows / followed by / spin-off); open 相关系列 to browse every related part, in
+  release order, and jump into any of them.
+- **DouBan rankings** — a DouBan title's detail page lists the official charts it is
+  featured in (收录于榜单); open a chip to see that chart's ranked titles.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 
@@ -68,6 +73,8 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, `genre:<genre>:<S or U>`, or the TV forms `tv-year:<yyyy>:<S or U>` / `tv-genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
 | `GET /detail?source=douban\|tmdb&id=` | synopsis and metadata for a DouBan title, or the collection reference of a TMDB movie |
 | `GET /collection?source=tmdb&id=` | every part of a TMDB collection, as normalized movie results |
+| `GET /series?source=imdb&id=` | the IMDb connection chain of one title (follows / followed by / spin-off), ordered by release year |
+| `GET /chart?source=douban&id=collection:<id>` | one of the official charts a DouBan title is listed in, with the same ranked envelope as other charts |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT resource search; one page of results (`page` 1–20) plus `hasMore` for scroll loading |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
 
@@ -94,6 +101,9 @@ panel (stored only in the local browser). IMDb and DouBan need no key.
   `bitsearch.to` and the poster image hosts.
 - IMDb search results carry no rating; DouBan recommendations include the public `rate`; TMDB
   provides ratings and vote counts.
+- IMDb related titles come from IMDb's browser GraphQL `connections` field (up to 1,250
+  relations per title); DouBan ranking chips come from `subject_collections` in the
+  subject payload.
 - Channel browse pages return 20 items per page and stop at page 100. IMDb browse pages are
   cursor paged through IMDb's browser GraphQL popularity index, so scrolling keeps loading new
   titles; the home Trending row still uses a curated seed list, which is why it is limited.

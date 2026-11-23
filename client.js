@@ -197,6 +197,18 @@ window.__ModuleLoader__.load({
       'collection.empty': '该合集暂时没有可展示的作品',
       'collection.back': '返回详情',
       'collection.count': '共 {count} 部作品',
+      'collection.note': '共 {count} 部作品',
+      'series.label': '相关系列',
+      'series.open': '查看系列',
+      'series.loading': '正在加载相关系列…',
+      'series.failed': '相关系列加载失败',
+      'series.empty': '暂无相关系列',
+      'series.back': '返回详情',
+      'series.count': '共 {count} 部作品',
+      'series.truncated': '关系过多，仅展示前 {count} 部',
+      'rankings.label': '收录于榜单',
+      'rankings.open': '查看榜单',
+      'chart.backDetail': '返回详情',
       'detail.rating': '评分',
       'detail.votes': '{count} 人评分',
       'kind.movie': '电影',
@@ -324,6 +336,18 @@ window.__ModuleLoader__.load({
       'collection.empty': 'This collection has no titles yet',
       'collection.back': 'Back to title',
       'collection.count': '{count} titles',
+      'collection.note': '{count} titles',
+      'series.label': 'Related titles',
+      'series.open': 'View related',
+      'series.loading': 'Loading related titles…',
+      'series.failed': 'Could not load related titles',
+      'series.empty': 'No related titles found',
+      'series.back': 'Back to title',
+      'series.count': '{count} titles',
+      'series.truncated': 'Only the first {count} related titles are shown',
+      'rankings.label': 'Featured in charts',
+      'rankings.open': 'Open chart',
+      'chart.backDetail': 'Back to title',
       'detail.rating': 'Rating',
       'detail.votes': '{count} votes',
       'kind.movie': 'Film',
@@ -844,6 +868,9 @@ window.__ModuleLoader__.load({
       '.mw-collection-label{font-size:11px;letter-spacing:0.04em;color:var(--dsw-alias-label-tertiary);}',
       '.mw-collection-name{font-size:14px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}',
       '.mw-collection-note{margin:0 0 16px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-collection-count{font-size:11px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-rankings{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}',
+      '.mw-rankings-label{font-size:11px;letter-spacing:0.04em;color:var(--dsw-alias-label-tertiary);}',
       '.mw-chart-section{margin-bottom:24px;}',
       '.mw-chart-section:last-child{margin-bottom:8px;}',
       '.mw-chart-section-head{display:flex;align-items:center;gap:8px;width:100%;padding:0 0 12px;border:0;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer;}',
@@ -1612,7 +1639,7 @@ window.__ModuleLoader__.load({
           'button',
           { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
           h(GlyphChevronLeft, { size: 15 }),
-          t('chart.back'),
+          view.returnTo === 'detail' ? t('chart.backDetail') : t('chart.back'),
         ),
         h(
           'div',
@@ -2123,6 +2150,77 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** The IMDb connection chain of one title: every related part. */
+    function SeriesPage(props) {
+      const t = props.t
+      const view = props.view || {}
+      const series = view.series || {}
+      const items = Array.isArray(view.items) ? view.items : []
+      const backRef = useRef(null)
+
+      useEffect(() => {
+        if (backRef.current) backRef.current.focus()
+      }, [])
+
+      let body = null
+      if (view.status === 'loading') {
+        body = h(Skeleton, null)
+      } else if (view.status === 'error') {
+        body = h(ErrorState, {
+          t: t,
+          code: view.failure || 'network',
+          onRetry: props.onRetry,
+        })
+      } else if (items.length === 0) {
+        body = h(
+          'div',
+          { className: 'mw-idle' },
+          h(RecommendHint, { t: t, text: t('series.empty') }),
+        )
+      } else {
+        body = h(
+          'div',
+          { className: 'mw-grid' },
+          items.map(item => h(ResultCard, {
+            key: searchKey(item),
+            t: t,
+            item: item,
+            showSource: false,
+            onSelect: props.onSelect,
+          })),
+        )
+      }
+
+      const note = items.length > 0
+        ? t('series.count', { count: items.length }) + (series.truncated ? ' · ' + t('series.truncated', { count: series.items.length }) : '')
+        : ''
+
+      return h(
+        'div',
+        { className: 'mw-detail-page', role: 'region', 'aria-label': series.title || t('series.label') },
+        h(
+          'button',
+          { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
+          h(GlyphChevronLeft, { size: 15 }),
+          t('series.back'),
+        ),
+        h(
+          'div',
+          { className: 'mw-channel-head' },
+          h('h2', { className: 'mw-channel-title' }, series.title || t('series.label')),
+          h(
+            'button',
+            { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onRetry },
+            h(GlyphRefresh, null),
+            ' ',
+            t('recommend.refresh'),
+          ),
+        ),
+        note ? h('p', { className: 'mw-collection-note' }, note) : null,
+        body,
+      )
+    }
+
     function DetailPage(props) {
       const t = props.t
       const item = props.item
@@ -2139,6 +2237,12 @@ window.__ModuleLoader__.load({
       )
       const [collection, setCollection] = useState(
         (cachedDetail && cachedDetail.collection) || null,
+      )
+      const [rankings, setRankings] = useState(
+        (cachedDetail && Array.isArray(cachedDetail.collections)) ? cachedDetail.collections : [],
+      )
+      const [series, setSeries] = useState(
+        (cachedDetail && cachedDetail.series) || null,
       )
       const [overviewPhase, setOverviewPhase] = useState(() => {
         if (item.overview) return 'done'
@@ -2157,9 +2261,15 @@ window.__ModuleLoader__.load({
             if (cancelled) return
             const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
             const text = detail && typeof detail.overview === 'string' ? detail.overview.trim() : ''
+            const collections = detail && Array.isArray(detail.collections) ? detail.collections : []
             if (!session.details) session.details = {}
-            session.details[cacheKey] = { overview: text }
+            session.details[cacheKey] = {
+              ...(session.details[cacheKey] || {}),
+              overview: text,
+              collections: collections,
+            }
             setOverview(text)
+            setRankings(collections)
             setOverviewPhase(text ? 'done' : 'missing')
           })
           .catch(() => {
@@ -2208,6 +2318,32 @@ window.__ModuleLoader__.load({
           cancelled = true
         }
       }, [cacheKey, item.source, item.kind, item.id])
+      // IMDb has no collection entity; its "series" is the connection chain
+      // (follows / followed by / spin-off), fetched lazily for the card.
+      useEffect(() => {
+        if (item.source !== 'imdb') return undefined
+        const cached = session.details && session.details[cacheKey]
+        if (cached && cached.series !== undefined) {
+          setSeries(cached.series)
+          return undefined
+        }
+        let cancelled = false
+        callApi('/series?source=imdb&id=' + encodeURIComponent(String(item.id)))
+          .then((body) => {
+            if (cancelled) return
+            const found = body && body.series && typeof body.series === 'object' ? body.series : null
+            setSeries(found)
+            if (!session.details) session.details = {}
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), series: found }
+          })
+          .catch(() => {
+            if (cancelled) return
+            setSeries(null)
+          })
+        return () => {
+          cancelled = true
+        }
+      }, [cacheKey, item.source, item.id])
 
       const tags = []
       if (item.year) tags.push(h('span', { className: 'mw-tag', key: 'year' }, String(item.year)))
@@ -2299,6 +2435,53 @@ window.__ModuleLoader__.load({
                   },
                   t('collection.open'),
                 ),
+              )
+              : null,
+            series && Array.isArray(series.items) && series.items.length > 1
+              ? h(
+                'div',
+                { className: 'mw-collection' },
+                series.cover
+                  ? h(
+                    'span',
+                    { className: 'mw-collection-cover' },
+                    h('img', { src: posterUrl(series.cover), alt: '', loading: 'lazy' }),
+                  )
+                  : null,
+                h(
+                  'div',
+                  { className: 'mw-collection-text' },
+                  h('p', { className: 'mw-collection-label' }, t('series.label')),
+                  h('p', { className: 'mw-collection-name' }, series.title || item.title || t('series.label')),
+                  h('p', { className: 'mw-collection-count' }, t('series.count', { count: series.items.length })),
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'mw-btn',
+                    onClick: () => props.onOpenSeries(series),
+                  },
+                  t('series.open'),
+                ),
+              )
+              : null,
+            rankings.length > 0
+              ? h(
+                'div',
+                { className: 'mw-rankings' },
+                h('span', { className: 'mw-rankings-label' }, t('rankings.label')),
+                rankings.map(ranking => h(
+                  'button',
+                  {
+                    key: String(ranking.id),
+                    type: 'button',
+                    className: 'mw-chip',
+                    title: ranking.title,
+                    onClick: () => props.onOpenRanking(ranking),
+                  },
+                  ranking.title,
+                )),
               )
               : null,
           ),
@@ -2406,6 +2589,7 @@ window.__ModuleLoader__.load({
       lists: { movie: null, tv: null },
       chartView: null,
       collectionView: null,
+      seriesView: null,
       torrents: {},
       details: {},
       sources: readSourcePrefs(),
@@ -2428,6 +2612,7 @@ window.__ModuleLoader__.load({
       const [lists, setLists] = useState(session.lists || { movie: null, tv: null })
       const [chartView, setChartView] = useState(session.chartView)
       const [collectionView, setCollectionView] = useState(session.collectionView)
+      const [seriesView, setSeriesView] = useState(session.seriesView)
       const [loadingMore, setLoadingMore] = useState(false)
       const [moreFailure, setMoreFailure] = useState(null)
       const [chartLoadingMore, setChartLoadingMore] = useState(false)
@@ -2454,6 +2639,9 @@ window.__ModuleLoader__.load({
       const collectionRef = useRef(collectionView)
       const collectionAbortRef = useRef(null)
       const collectionReturnRef = useRef(null)
+      const seriesRef = useRef(seriesView)
+      const seriesAbortRef = useRef(null)
+      const seriesReturnRef = useRef(null)
       const bodyRef = useRef(null)
       const recommendationLimitRef = useRef(12)
       const suggestionsLimitRef = useRef(0)
@@ -2494,7 +2682,9 @@ window.__ModuleLoader__.load({
         chartRef.current = chartView
         session.collectionView = collectionView
         collectionRef.current = collectionView
-      }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView, collectionView])
+        session.seriesView = seriesView
+        seriesRef.current = seriesView
+      }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView, collectionView, seriesView])
       useEffect(() => {
         keyRef.current = storedKey
       }, [storedKey])
@@ -2933,11 +3123,11 @@ window.__ModuleLoader__.load({
       /** Open one chart and load its first page of ranked titles. */
       function openChart(chart, kind) {
         if (!chart || !chart.id) return
-        void loadChartItems(chart, kind || 'movie', 0, false)
+        void loadChartItems(chart, kind || 'movie', 0, false, 'lists')
       }
 
       /** Load one range of a chart; `append` merges the next page in place. */
-      async function loadChartItems(chart, kind, start, append) {
+      async function loadChartItems(chart, kind, start, append, returnTo) {
         if (append) {
           if (chartMoreRef.current) return
           chartMoreRef.current = true
@@ -2956,6 +3146,7 @@ window.__ModuleLoader__.load({
             failure: null,
             total: chart.total || null,
             hasMore: false,
+            returnTo: returnTo || null,
           }
           setChartView(loading)
           session.chartView = loading
@@ -2972,6 +3163,7 @@ window.__ModuleLoader__.load({
           const errors = Array.isArray(body.errors) ? body.errors : []
           const failure = errors.length > 0 ? (errors[0].code || 'upstream_error') : null
           const total = Number.isInteger(body.total) ? body.total : (chart.total || null)
+          const mergedChart = body.chart && typeof body.chart === 'object' ? { ...chart, ...body.chart } : chart
           const current = chartRef.current
           if (append) {
             if (!current || !current.chart || current.chart.id !== chart.id) return
@@ -2989,13 +3181,14 @@ window.__ModuleLoader__.load({
             session.chartView = view
           } else {
             const view = {
-              chart: chart,
+              chart: mergedChart,
               kind: kind,
               status: 'done',
               items: items,
               failure: failure,
               total: total,
               hasMore: Boolean(body.hasMore),
+              returnTo: returnTo || null,
             }
             setChartView(view)
             session.chartView = view
@@ -3014,6 +3207,7 @@ window.__ModuleLoader__.load({
               failure: code,
               total: chart.total || null,
               hasMore: false,
+              returnTo: returnTo || null,
             }
             setChartView(failed)
             session.chartView = failed
@@ -3037,7 +3231,7 @@ window.__ModuleLoader__.load({
       function retryChart() {
         const view = chartRef.current
         if (!view || !view.chart) return
-        void loadChartItems(view.chart, view.kind || 'movie', 0, false)
+        void loadChartItems(view.chart, view.kind || 'movie', 0, false, view.returnTo || null)
       }
 
       /** Return from a chart to the channel's 片单 tab. */
@@ -3123,6 +3317,94 @@ window.__ModuleLoader__.load({
         setSelectedItem(item)
         setCollectionView(null)
         session.collectionView = null
+      }
+
+      /** Open an IMDb related-series chain (the chain already arrived in the detail payload). */
+      function openSeries(series) {
+        if (!series || !series.id) return
+        const view = {
+          status: 'done',
+          series: series,
+          items: Array.isArray(series.items) ? series.items : [],
+          failure: null,
+        }
+        setSeriesView(view)
+        session.seriesView = view
+      }
+
+      async function loadSeries(id) {
+        if (!id) return
+        if (seriesAbortRef.current) seriesAbortRef.current.abort()
+        const controller = new AbortController()
+        seriesAbortRef.current = controller
+        const previous = seriesRef.current
+        const loading = {
+          status: 'loading',
+          series: (previous && previous.series) || null,
+          items: [],
+          failure: null,
+        }
+        setSeriesView(loading)
+        session.seriesView = loading
+        try {
+          const body = await callApi('/series?source=imdb&id=' + encodeURIComponent(String(id)), { signal: controller.signal })
+          if (controller.signal.aborted) return
+          const found = body && body.series && typeof body.series === 'object' ? body.series : {}
+          const view = {
+            status: 'done',
+            series: found,
+            items: Array.isArray(found.items) ? found.items : [],
+            failure: null,
+          }
+          setSeriesView(view)
+          session.seriesView = view
+        } catch (error) {
+          if (controller.signal.aborted) return
+          const view = {
+            status: 'error',
+            series: (previous && previous.series) || null,
+            items: [],
+            failure: error && error.code ? error.code : 'network',
+          }
+          setSeriesView(view)
+          session.seriesView = view
+        }
+      }
+
+      /** Reload the open related-series page. */
+      function retrySeries() {
+        const view = seriesRef.current
+        if (!view || !view.series) return
+        void loadSeries(view.series.id)
+      }
+
+      /** Return from the related-series page to the detail page. */
+      function closeSeries() {
+        if (seriesAbortRef.current) seriesAbortRef.current.abort()
+        setSeriesView(null)
+        session.seriesView = null
+      }
+
+      /** Open one related title, remembering to come back to the series page. */
+      function openSeriesItem(item) {
+        if (!item) return
+        seriesReturnRef.current = seriesRef.current
+        setSelectedItem(item)
+        setSeriesView(null)
+        session.seriesView = null
+      }
+
+      /** Open one of the Douban charts a title is listed in. */
+      function openRanking(ranking) {
+        if (!ranking || !ranking.id) return
+        void loadChartItems({
+          id: 'collection:' + String(ranking.id),
+          title: ranking.title,
+          subtitle: ranking.subtitle || '',
+          description: ranking.description || '',
+          total: Number.isInteger(ranking.total) ? ranking.total : null,
+          cover: ranking.cover || null,
+        }, 'movie', 0, false, 'detail')
       }
 
       /** Clear the open channel's cache and reload its first page. */
@@ -3303,6 +3585,13 @@ window.__ModuleLoader__.load({
 
       function backToResults() {
         setSelectedItem(null)
+        if (seriesReturnRef.current) {
+          const saved = seriesReturnRef.current
+          seriesReturnRef.current = null
+          setSeriesView(saved)
+          session.seriesView = saved
+          return
+        }
         if (collectionReturnRef.current) {
           const saved = collectionReturnRef.current
           collectionReturnRef.current = null
@@ -3364,10 +3653,12 @@ window.__ModuleLoader__.load({
         'div',
         {
           className: 'mw-page',
-          'data-view': collectionView ? 'collection' : selectedItem ? 'detail' : chartView ? 'chart' : channel ? 'channel' : 'list',
+          'data-view': collectionView ? 'collection' : seriesView ? 'series' : chartView ? 'chart' : selectedItem ? 'detail' : channel ? 'channel' : 'list',
           onKeyDown: event => {
             if (event.key === 'Escape' && !keyOpen && !settingsOpen) {
               if (collectionView) closeCollection()
+              else if (seriesView) closeSeries()
+              else if (chartView) closeChart()
               else if (selectedItem) backToResults()
               else if (channel) closeChannel()
               else if (phase !== 'idle') cancelSearch()
@@ -3607,6 +3898,14 @@ window.__ModuleLoader__.load({
               onRetry: retryCollection,
               onSelect: openCollectionItem,
             })
+            : seriesView
+            ? h(SeriesPage, {
+              t: t,
+              view: seriesView,
+              onBack: closeSeries,
+              onRetry: retrySeries,
+              onSelect: openSeriesItem,
+            })
             : selectedItem
             ? h(DetailPage, {
               key: String(selectedItem.source) + '|' + String(selectedItem.id),
@@ -3614,6 +3913,8 @@ window.__ModuleLoader__.load({
               item: selectedItem,
               onBack: backToResults,
               onOpenCollection: openCollection,
+              onOpenSeries: openSeries,
+              onOpenRanking: openRanking,
             })
             : chartView
               ? h(ChartPage, {

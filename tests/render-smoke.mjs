@@ -615,6 +615,51 @@ const collectionHtml = renderState('collection', `{ source: 'all', draft: '', da
 ])
 assert.ok(!collectionHtml.includes('class="mw-collection"'), 'collection page is not the detail block')
 
+// An IMDb movie shows its connection chain (相关系列) and the related-series
+// page renders every part. The chain is seeded in the details cache because
+// the offline fetch shim cannot reach api.graphql.imdb.com.
+const SERIES = {
+  id: 'tt2395427',
+  title: '复仇者联盟系列',
+  cover: 'https://m.media-amazon.com/images/M/avengers.jpg',
+  truncated: false,
+  items: [ITEMS[1], ITEMS[0], ITEMS[2]],
+}
+const detailSeriesHtml = renderState('detail (series)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[1])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'imdb|tt0816692': ${JSON.stringify({ series: SERIES })} } }`, [
+  ['data-view="detail"', 'detail view'],
+  ['mw-collection', 'series block'],
+  ['相关系列', 'series label'],
+  ['复仇者联盟系列', 'series title'],
+  ['查看系列', 'open-series action'],
+  ['共 3 部作品', 'series title count'],
+])
+const SERIES_VIEW = { status: 'done', series: SERIES, items: SERIES.items, failure: null }
+const seriesHtml = renderState('series', `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, seriesView: ${JSON.stringify(SERIES_VIEW)} }`, [
+  ['data-view="series"', 'series view'],
+  ['mw-detail-page', 'series page'],
+  ['mw-back', 'back control'],
+  ['返回详情', 'back label'],
+  ['复仇者联盟系列', 'series heading'],
+  ['共 3 部作品', 'series count'],
+  ['mw-grid', 'series grid'],
+  ['mw-card', 'series cards'],
+])
+
+// A Douban title lists the official charts it belongs to as chips; clicking one
+// opens the existing chart page (收录于榜单).
+const RANKINGS = [
+  { id: 'film_genre_49', title: '高分经典冒险片榜', subtitle: '豆瓣榜单', description: '冒险片口碑榜', total: 50 },
+  { id: 'ECVIOIPDI', title: '美国奇幻片榜', subtitle: '豆瓣榜单', description: '美国奇幻片榜', total: 20 },
+]
+const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[2])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS })} } }`, [
+  ['data-view="detail"', 'detail view'],
+  ['mw-rankings', 'rankings block'],
+  ['收录于榜单', 'rankings label'],
+  ['高分经典冒险片榜', 'first ranking chip'],
+  ['美国奇幻片榜', 'second ranking chip'],
+  ['data-empty="false"', 'cached synopsis renders'],
+])
+
 const TORRENT_VIEW = {
   status: 'done',
   tookMs: 640,
@@ -715,6 +760,9 @@ console.log('  channel tv lists:', tvListsChannelHtml.length, 'chars')
 console.log('  chart        :', chartHtml.length, 'chars')
 console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')
+console.log('  detail series:', detailSeriesHtml.length, 'chars')
+console.log('  detail rankings:', detailRankingsHtml.length, 'chars')
+console.log('  series       :', seriesHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')
 console.log('  detail+torr end:', torrentEndHtml.length, 'chars')
 console.log('  error        :', errorHtml.length, 'chars')
