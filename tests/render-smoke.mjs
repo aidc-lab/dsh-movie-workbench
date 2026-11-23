@@ -214,6 +214,7 @@ const idleHtml = renderState('idle (recommendations)', `{ source: 'all', draft: 
   ['热门推荐', 'Douban recommendation label'],
   ['mw-group-title', 'per-channel rows'],
   ['mw-card-title', 'recommendation cards'],
+  ['2014 · 电影', 'recommendation card shows the release year'],
   ['星际穿越', 'recommendation title'],
   ['mw-results::-webkit-scrollbar', 'hidden-scrollbar rule'],
   ['mw-link-btn mw-more', 'see-all control per channel'],

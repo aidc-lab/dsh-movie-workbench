@@ -860,3 +860,21 @@ Covered by render-smoke states `detail (collection)`, `detail (series)`,
   `year` is stored in the browser cache and used for the year tag, so the tag
   appears once the detail loads. `GET /detail?source=douban` already returned
   `year` — no host change was needed.
+
+## Douban list rows (v1.16)
+
+`/trending` and `/browse` for `source=douban` no longer read the desktop
+`j/search_subjects` feed (which returns no year). They page the mobile
+recommendation feed instead:
+
+- movies: `https://m.douban.com/rexxar/api/v2/movie/recommend`
+- TV: `https://m.douban.com/rexxar/api/v2/tv/recommend`
+
+with `refresh=0&start=<pageStart>&count=<limit>&selected_categories={}&uncollect=false&sort=U`
+and the mobile referer. Rows are normalized from `items[]`: `id`, `title`,
+`year`, `rating.value` → rating, `rating.count` → votes, `pic.large` (or
+`pic.normal`) → poster, `type` → kind; `start`/`count` paging is exact and
+rows whose `type` does not match the requested channel are dropped. As a
+result Douban list cards show `<year> · 电影/剧集` like the other channels,
+and the detail page finds a year there too. `/search` still uses
+`j/subject_suggest` (that payload already has `year`).

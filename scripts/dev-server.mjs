@@ -361,6 +361,11 @@ async function main() {
       `HTTP ${trendingDouban.response.status}, ${trendingDoubanRows.length} row(s)`,
     )
     check(
+      'Douban trending rows carry release years from the mobile feed',
+      trendingDoubanRows.filter((row) => Number.isInteger(row.year)).length >= trendingDoubanRows.length - 2,
+      `years=${trendingDoubanRows.slice(0, 6).map((row) => row.year).join(',')}`,
+    )
+    check(
       'Douban trending maps rate to a numeric 0–10 rating where present',
       trendingDoubanRows.some((row) => typeof row.rating === 'number') &&
         trendingDoubanRows.every(
@@ -628,6 +633,12 @@ async function main() {
         Array.isArray(browseDouban.body?.errors) &&
         browseDouban.body.errors.length === 0,
       `HTTP ${browseDouban.response.status}, ${browseDoubanItems.length} row(s), hasMore=${browseDouban.body?.hasMore}`,
+    )
+    check(
+      'Douban browse rows carry release years from the mobile feed',
+      browseDoubanItems.filter((row) => Number.isInteger(row.year)).length >= browseDoubanItems.length - 2 &&
+        browseDoubanItems.every((row) => row.year === null || Number.isInteger(row.year)),
+      `years=${browseDoubanItems.slice(0, 6).map((row) => row.year).join(',')}`,
     )
 
     const browseDoubanPage2 = await getJson(`${api}/browse?source=douban&category=movie&page=2`)
