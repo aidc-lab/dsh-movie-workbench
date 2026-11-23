@@ -596,10 +596,11 @@ const detailCollectionHtml = renderState('detail (collection)', `{ source: 'all'
   ['mw-related-card', 'related card'],
   ['所属合集', 'collection label'],
   ['星际穿越合集', 'collection name'],
-  ['mw-item-facts', 'facts line'],
-  ['国家/地区 美国 / 英国', 'region facts'],
-  ['分类 剧情 / 科幻 / 冒险', 'genre facts'],
-  ['片长 169 分钟', 'runtime facts'],
+  ['mw-item-tags-meta', 'metadata chips row'],
+  ['mw-tag-meta', 'metadata chip'],
+  ['美国 / 英国', 'region chip'],
+  ['剧情', 'genre chip'],
+  ['169 分钟', 'runtime chip'],
 ])
 
 const COLLECTION_VIEW = {
@@ -637,8 +638,9 @@ const detailSeriesHtml = renderState('detail (series)', `{ source: 'all', draft:
   ['相关系列', 'series label'],
   ['复仇者联盟系列', 'series title'],
   ['共 3 部作品', 'series title count'],
-  ['国家/地区 United States', 'IMDb region facts'],
-  ['片长 143 分钟', 'IMDb runtime facts'],
+  ['United States', 'IMDb region chip'],
+  ['Action', 'IMDb genre chip'],
+  ['143 分钟', 'IMDb runtime chip'],
 ])
 const SERIES_VIEW = { status: 'done', series: SERIES, items: SERIES.items, failure: null }
 const seriesHtml = renderState('series', `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, seriesView: ${JSON.stringify(SERIES_VIEW)} }`, [
@@ -654,11 +656,13 @@ const seriesHtml = renderState('series', `{ source: 'all', draft: '', data: ${JS
 
 // A Douban title lists the official charts it belongs to as a collection-like
 // card; opening it shows every chart as a clickable chart card (收录于榜单).
+// DouBan recommendation rows have no year; the subject detail supplies it.
+const DOUBAN_NO_YEAR = { ...ITEMS[2], year: null }
 const RANKINGS = [
   { id: 'film_genre_49', title: '高分经典冒险片榜', subtitle: '豆瓣榜单', description: '冒险片口碑榜', total: 50 },
   { id: 'ECVIOIPDI', title: '美国奇幻片榜', subtitle: '豆瓣榜单', description: '美国奇幻片榜', total: 20 },
 ]
-const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[2])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS, meta: { region: '美国 / 英国', genres: ['剧情', '科幻', '冒险'], runtime: '169分钟' } })} } }`, [
+const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(DOUBAN_NO_YEAR)}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS, meta: { region: '美国 / 英国', genres: ['剧情', '科幻', '冒险'], runtime: '169分钟' }, year: 2014 })} } }`, [
   ['data-view="detail"', 'detail view'],
   ['mw-detail-side', 'related side rail'],
   ['mw-related', 'related section'],
@@ -666,7 +670,10 @@ const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', dr
   ['高分经典冒险片榜', 'first chart name'],
   ['美国奇幻片榜', 'second chart name'],
   ['共 50 部', 'first chart total'],
-  ['片长 169分钟', 'douban runtime facts'],
+  ['mw-item-tags-meta', 'metadata chips row'],
+  ['美国 / 英国', 'douban region chip'],
+  ['169分钟', 'douban runtime chip'],
+  ['2014', 'year restored from the detail cache'],
   ['data-empty="false"', 'cached synopsis renders'],
 ])
 

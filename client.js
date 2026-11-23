@@ -187,10 +187,6 @@ window.__ModuleLoader__.load({
       'notice.setKey': '设置 Key',
       'detail.back': '返回结果',
       'detail.overview': '简介',
-      'detail.region': '国家/地区',
-      'detail.genres': '分类',
-      'detail.runtime': '片长',
-      'detail.runtimeMinutes': '{count} 分钟',
       'detail.overviewLoading': '简介加载中…',
       'detail.noOverview': '该渠道没有提供简介。',
       'detail.open': '在 {source} 查看',
@@ -327,10 +323,6 @@ window.__ModuleLoader__.load({
       'notice.setKey': 'Set key',
       'detail.back': 'Back to results',
       'detail.overview': 'Overview',
-      'detail.region': 'Country/region',
-      'detail.genres': 'Genres',
-      'detail.runtime': 'Runtime',
-      'detail.runtimeMinutes': '{count} min',
       'detail.overviewLoading': 'Loading overview…',
       'detail.noOverview': 'This channel returned no overview.',
       'detail.open': 'Open on {source}',
@@ -814,7 +806,8 @@ window.__ModuleLoader__.load({
       '.mw-item-section{margin-bottom:18px;}',
       '.mw-item-label{margin:0 0 6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);}',
       '.mw-item-text{margin:0;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);}',
-      '.mw-item-facts{margin:-8px 0 18px;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-item-tags-meta{margin:-10px 0 18px;}',
+      '.mw-tag-meta{padding:1px 8px;background:transparent;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11.5px;line-height:17px;}',
       '.mw-item-text[data-empty="true"]{color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));}',
       '.mw-item-text[data-loading="true"]{animation:mw-pulse 1.4s ease-in-out infinite;}',
       '.mw-item-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;}',
@@ -2296,6 +2289,9 @@ window.__ModuleLoader__.load({
       const [meta, setMeta] = useState(
         (cachedDetail && cachedDetail.meta) || null,
       )
+      const [detailYear, setDetailYear] = useState(
+        (cachedDetail && cachedDetail.year) || null,
+      )
       const [overviewPhase, setOverviewPhase] = useState(() => {
         if (item.overview) return 'done'
         if (cachedDetail) return cachedDetail.overview ? 'done' : 'missing'
@@ -2316,16 +2312,19 @@ window.__ModuleLoader__.load({
             const text = detail && typeof detail.overview === 'string' ? detail.overview.trim() : ''
             const collections = detail && Array.isArray(detail.collections) ? detail.collections : []
             const foundMeta = detail ? detailMeta(detail) : null
+            const foundYear = detail && Number.isInteger(detail.year) ? detail.year : null
             if (!session.details) session.details = {}
             session.details[cacheKey] = {
               ...(session.details[cacheKey] || {}),
               overview: text,
               collections: collections,
               meta: foundMeta,
+              year: foundYear,
             }
             setOverview(text)
             setRankings(collections)
             setMeta(foundMeta)
+            setDetailYear(foundYear)
             setOverviewPhase(text ? 'done' : 'missing')
           })
           .catch(() => {
@@ -2360,16 +2359,19 @@ window.__ModuleLoader__.load({
             const errors = body && Array.isArray(body.errors) ? body.errors : []
             const keyMissing = errors.some(error => error && error.code === 'tmdb_key_missing')
             const foundMeta = detail ? detailMeta(detail) : null
+            const foundYear = detail && Number.isInteger(detail.year) ? detail.year : null
             if (!session.details) session.details = {}
             if (!keyMissing) {
               session.details[cacheKey] = {
                 ...(session.details[cacheKey] || {}),
                 collection: found,
                 meta: foundMeta,
+                year: foundYear,
               }
             }
             setCollection(found)
             setMeta(foundMeta)
+            setDetailYear(foundYear)
           })
           .catch(() => {
             if (cancelled) return
@@ -2422,9 +2424,11 @@ window.__ModuleLoader__.load({
             if (cancelled) return
             const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
             const foundMeta = detail ? detailMeta(detail) : null
+            const foundYear = detail && Number.isInteger(detail.year) ? detail.year : null
             if (!session.details) session.details = {}
-            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), meta: foundMeta }
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), meta: foundMeta, year: foundYear }
             setMeta(foundMeta)
+            setDetailYear(foundYear)
             const plot = detail && typeof detail.overview === 'string' ? detail.overview.trim() : ''
             if (plot) {
               setOverview(plot)
@@ -2441,7 +2445,8 @@ window.__ModuleLoader__.load({
       }, [cacheKey, item.source, item.id])
 
       const tags = []
-      if (item.year) tags.push(h('span', { className: 'mw-tag', key: 'year' }, String(item.year)))
+      const shownYear = item.year || detailYear || null
+      if (shownYear) tags.push(h('span', { className: 'mw-tag', key: 'year' }, String(shownYear)))
       tags.push(h('span', { className: 'mw-tag', key: 'kind' }, kindLabel(t, item.kind)))
       if (item.rating !== null && item.rating !== undefined) {
         tags.push(h(
@@ -2453,18 +2458,19 @@ window.__ModuleLoader__.load({
           item.votes ? ' · ' + t('detail.votes', { count: item.votes }) : '',
         ))
       }
-      const factParts = []
-      if (meta && meta.region) factParts.push(t('detail.region') + ' ' + meta.region)
-      if (meta && Array.isArray(meta.genres) && meta.genres.length > 0) {
-        factParts.push(t('detail.genres') + ' ' + meta.genres.join(' / '))
+      const factTags = []
+      if (meta && meta.region) {
+        factTags.push(h('span', { className: 'mw-tag mw-tag-meta', key: 'region' }, meta.region))
+      }
+      if (meta && Array.isArray(meta.genres)) {
+        meta.genres.forEach((genre, index) => {
+          factTags.push(h('span', { className: 'mw-tag mw-tag-meta', key: 'genre-' + index }, genre))
+        })
       }
       if (meta && meta.runtime) {
-        const runtimeText = typeof meta.runtime === 'number'
-          ? t('detail.runtimeMinutes', { count: meta.runtime })
-          : String(meta.runtime)
-        factParts.push(t('detail.runtime') + ' ' + runtimeText)
+        const runtimeText = typeof meta.runtime === 'number' ? `${meta.runtime} 分钟` : String(meta.runtime)
+        factTags.push(h('span', { className: 'mw-tag mw-tag-meta', key: 'runtime' }, runtimeText))
       }
-      const factsText = factParts.join(' · ')
       const original = item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : ''
       const relatedSections = []
       if (collection) {
@@ -2528,7 +2534,9 @@ window.__ModuleLoader__.load({
             h('h2', { className: 'mw-item-title' }, item.title || item.originalTitle || item.id),
             original ? h('p', { className: 'mw-item-original' }, original) : null,
             h('div', { className: 'mw-item-tags' }, tags),
-            factsText ? h('p', { className: 'mw-item-facts' }, factsText) : null,
+            factTags.length > 0
+              ? h('div', { className: 'mw-item-tags mw-item-tags-meta' }, factTags)
+              : null,
             h(
               'div',
               { className: 'mw-item-section' },

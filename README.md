@@ -27,9 +27,11 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   收录于榜单 card opens that chart's ranked titles directly. The middle column and the
   synopsis use the full remaining width, and the rail stacks below the title on narrow
   panels.
-- **Detail metadata** — the title page shows country/region, genres and runtime under
-  the rating tags: DouBan details come from the subject API, TMDB details from the movie
-  endpoint, and IMDb details from its browser GraphQL endpoint.
+- **Detail metadata** — the title page shows country/region, genres and runtime as small
+  tags under the rating row: DouBan details come from the subject API, TMDB details from
+  the movie endpoint, and IMDb details from its browser GraphQL endpoint. A DouBan title
+  opened from a recommendation row (which carries no year) fills its release year from
+  the same detail request.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 

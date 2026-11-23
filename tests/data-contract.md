@@ -851,8 +851,12 @@ Covered by render-smoke states `detail (collection)`, `detail (series)`,
   `votes`; `tmdb` detail now also returns `originalTitle`, `genres`,
   `region`, `runtime` (minutes), `rating` and `votes` alongside `collection`.
 - `runtime` is a number of minutes for TMDB/IMDb and a localized string
-  (e.g. `169分钟`) for DouBan; the browser half formats numbers with
-  `detail.runtimeMinutes` and shows `国家/地区`, `分类` and `片长` under the
-  rating tags in a `.mw-item-facts` line. The synopsis line is no longer
-  width-capped (`max-width:72ch` removed), so wide panels use the full
-  middle column.
+  (e.g. `169分钟`) for DouBan; the browser half renders region, each genre and
+  the runtime as small `.mw-tag.mw-tag-meta` chips in a `.mw-item-tags-meta`
+  row under the rating tags. The synopsis line is no longer width-capped
+  (`max-width:72ch` removed), so wide panels use the full middle column.
+- A DouBan title's `year` can be missing when it comes from a recommendation
+  row (the `j/search_subjects` payload has no year); the detail response's
+  `year` is stored in the browser cache and used for the year tag, so the tag
+  appears once the detail loads. `GET /detail?source=douban` already returned
+  `year` — no host change was needed.
