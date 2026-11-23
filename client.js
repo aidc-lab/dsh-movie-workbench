@@ -2178,15 +2178,24 @@ window.__ModuleLoader__.load({
         const hit = session.details && session.details[cacheKey]
         if (hit && 'collection' in hit) return undefined
         let cancelled = false
-        callApi('/detail?source=tmdb&id=' + encodeURIComponent(String(item.id)))
+        const headers = { accept: 'application/json' }
+        const storedKey = readTmdbKey()
+        if (storedKey) headers['x-mw-tmdb-key'] = storedKey
+        callApi('/detail?source=tmdb&id=' + encodeURIComponent(String(item.id)), { headers })
           .then((body) => {
             if (cancelled) return
             const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
             const found = detail && detail.collection && typeof detail.collection === 'object'
               ? detail.collection
               : null
+            // A missing credential is recoverable: do not cache "no collection",
+            // so saving a key and reopening the title fetches again.
+            const errors = body && Array.isArray(body.errors) ? body.errors : []
+            const keyMissing = errors.some(error => error && error.code === 'tmdb_key_missing')
             if (!session.details) session.details = {}
-            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), collection: found }
+            if (!keyMissing) {
+              session.details[cacheKey] = { ...(session.details[cacheKey] || {}), collection: found }
+            }
             setCollection(found)
           })
           .catch(() => {
