@@ -584,6 +584,37 @@ const doubanDetailHtml = renderState('detail (douban synopsis loading)', `{ sour
 assert.ok(doubanDetailHtml.includes('data-empty="true"'), 'douban detail: overview slot is empty while loading')
 assert.ok(!doubanDetailHtml.includes('该渠道没有提供简介'), 'douban detail: no missing-overview copy while loading')
 
+// A TMDB movie that belongs to a franchise shows the collection block; the
+// details cache supplies it in this offline render (the real page fetches
+// /detail?source=tmdb lazily).
+const COLLECTION = { id: 86311, name: '星际穿越合集', poster: 'https://image.tmdb.org/t/p/w342/coll.jpg' }
+const detailCollectionHtml = renderState('detail (collection)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'tmdb|157336': ${JSON.stringify({ collection: COLLECTION })} } }`, [
+  ['data-view="detail"', 'detail view'],
+  ['mw-collection', 'collection block'],
+  ['mw-collection-cover', 'collection cover'],
+  ['所属合集', 'collection label'],
+  ['星际穿越合集', 'collection name'],
+  ['查看合集', 'open-collection action'],
+])
+
+const COLLECTION_VIEW = {
+  collection: { id: 86311, name: '星际穿越合集', overview: '一队探险家穿越虫洞寻找新家园。' },
+  status: 'done',
+  items: [ITEMS[0], ITEMS[1], ITEMS[2]],
+  failure: null,
+}
+const collectionHtml = renderState('collection', `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, collectionView: ${JSON.stringify(COLLECTION_VIEW)} }`, [
+  ['data-view="collection"', 'collection view'],
+  ['mw-detail-page', 'collection page'],
+  ['mw-back', 'back control'],
+  ['返回详情', 'back label'],
+  ['星际穿越合集', 'collection heading'],
+  ['共 3 部作品', 'collection part count'],
+  ['mw-grid', 'collection grid'],
+  ['mw-card', 'collection cards'],
+])
+assert.ok(!collectionHtml.includes('class="mw-collection"'), 'collection page is not the detail block')
+
 const TORRENT_VIEW = {
   status: 'done',
   tookMs: 640,

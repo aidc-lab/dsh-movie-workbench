@@ -16,6 +16,8 @@
  *   /charts?source=douban&kind=movie|tv          (v1.11 movie / TV chart lists)
  *   /chart?source=douban&id=&start=&count=     (v1.9 ranked chart titles)
  *   /detail?source=douban&id=<id>             (v1.4 synopsis enrichment)
+ *   /detail?source=tmdb&id=<id>               (v1.13 TMDB collection lookup)
+ *   /collection?source=tmdb&id=<id>           (v1.13 collection parts)
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
  *
@@ -34,6 +36,8 @@ import {
   DEFAULT_USER_AGENT,
   IMDB_TRENDING_SEEDS,
   normalizeTmdbBrowseItem,
+  normalizeTmdbCollection,
+  normalizeTmdbMovieDetail,
 } from '../lib/providers.js'
 
 // Make the missing-credential case deterministic in this dev harness only.
@@ -1244,7 +1248,7 @@ async function main() {
       detailNoSource.response.status === 400 && detailNoSource.body?.code === 'bad_source',
       `HTTP ${detailNoSource.response.status}, code=${detailNoSource.body?.code}`,
     )
-    const detailBadSource = await getJson(`${api}/detail?source=tmdb&id=1889243`)
+    const detailBadSource = await getJson(`${api}/detail?source=imdb&id=1889243`)
     check(
       'detail with an unsupported source -> 400 bad_source',
       detailBadSource.response.status === 400 && detailBadSource.body?.code === 'bad_source',
@@ -1261,6 +1265,96 @@ async function main() {
       'detail with a non-numeric id -> 400 bad_id',
       detailBadId.response.status === 400 && detailBadId.body?.code === 'bad_id',
       `HTTP ${detailBadId.response.status}, code=${detailBadId.body?.code}`,
+    )
+
+    /* ---------------- /detail tmdb + /collection (contract v1.13) ---------------- */
+    const detailTmdbNoKey = await getJson(`${api}/detail?source=tmdb&id=157336`)
+    check(
+      'detail source=tmdb without a credential -> 200 ok:true, detail null, tmdb_key_missing',
+      detailTmdbNoKey.response.status === 200 &&
+        detailTmdbNoKey.body?.ok === true &&
+        detailTmdbNoKey.body?.source === 'tmdb' &&
+        detailTmdbNoKey.body?.detail === null &&
+        typeof detailTmdbNoKey.body?.lang === 'string' &&
+        detailTmdbNoKey.body?.errors?.[0]?.code === 'tmdb_key_missing',
+      `HTTP ${detailTmdbNoKey.response.status}, code=${detailTmdbNoKey.body?.errors?.[0]?.code}`,
+    )
+    const collectionNoSource = await getJson(`${api}/collection?id=86311`)
+    check(
+      'collection without source -> 400 bad_source',
+      collectionNoSource.response.status === 400 && collectionNoSource.body?.code === 'bad_source',
+      `HTTP ${collectionNoSource.response.status}, code=${collectionNoSource.body?.code}`,
+    )
+    const collectionBadSource = await getJson(`${api}/collection?source=douban&id=86311`)
+    check(
+      'collection with an unsupported source -> 400 bad_source',
+      collectionBadSource.response.status === 400 && collectionBadSource.body?.code === 'bad_source',
+      `HTTP ${collectionBadSource.response.status}, code=${collectionBadSource.body?.code}`,
+    )
+    const collectionNoId = await getJson(`${api}/collection?source=tmdb`)
+    check(
+      'collection without id -> 400 empty_id',
+      collectionNoId.response.status === 400 && collectionNoId.body?.code === 'empty_id',
+      `HTTP ${collectionNoId.response.status}, code=${collectionNoId.body?.code}`,
+    )
+    const collectionBadId = await getJson(`${api}/collection?source=tmdb&id=abc`)
+    check(
+      'collection with a non-numeric id -> 400 bad_id',
+      collectionBadId.response.status === 400 && collectionBadId.body?.code === 'bad_id',
+      `HTTP ${collectionBadId.response.status}, code=${collectionBadId.body?.code}`,
+    )
+    const collectionNoKey = await getJson(`${api}/collection?source=tmdb&id=86311`)
+    check(
+      'collection without a credential -> 200 ok:true, empty parts, tmdb_key_missing',
+      collectionNoKey.response.status === 200 &&
+        collectionNoKey.body?.ok === true &&
+        collectionNoKey.body?.collection === null &&
+        Array.isArray(collectionNoKey.body?.items) &&
+        collectionNoKey.body.items.length === 0 &&
+        collectionNoKey.body?.errors?.[0]?.code === 'tmdb_key_missing',
+      `HTTP ${collectionNoKey.response.status}, code=${collectionNoKey.body?.errors?.[0]?.code}`,
+    )
+
+    // Offline normalizers: collection metadata from belongs_to_collection and
+    // every part mapped into the shared result shape.
+    const movieDetailFixture = {
+      id: 157336,
+      title: '星际穿越',
+      original_title: 'Interstellar',
+      release_date: '2014-11-05',
+      overview: '一队探险家…',
+      belongs_to_collection: { id: 86311, name: '星际穿越合集', poster_path: '/abc.jpg' },
+    }
+    const normalizedDetail = normalizeTmdbMovieDetail(movieDetailFixture, '157336')
+    check(
+      'normalizeTmdbMovieDetail maps belongs_to_collection',
+      String(normalizedDetail?.collection?.id) === '86311' &&
+        normalizedDetail?.collection?.name === '星际穿越合集' &&
+        typeof normalizedDetail?.collection?.poster === 'string' &&
+        normalizedDetail.collection.poster.startsWith('https://image.tmdb.org/t/p/w342/'),
+      `collection=${JSON.stringify(normalizedDetail?.collection)}`,
+    )
+    const collectionFixture = {
+      id: 86311,
+      name: '星际穿越合集',
+      overview: '合集介绍',
+      poster_path: '/coll.jpg',
+      parts: [
+        { id: 3, title: '第三部', release_date: '2020-01-01', vote_average: 7, poster_path: '/p3.jpg' },
+        { id: 1, title: '第一部', release_date: '2014-01-01', vote_average: 9, poster_path: '/p1.jpg' },
+      ],
+    }
+    const normalizedCollection = normalizeTmdbCollection(collectionFixture, '86311')
+    check(
+      'normalizeTmdbCollection maps parts into movie results sorted by year',
+      normalizedCollection?.name === '星际穿越合集' &&
+        normalizedCollection.items.length === 2 &&
+        normalizedCollection.items[0].title === '第一部' &&
+        normalizedCollection.items[0].kind === 'movie' &&
+        normalizedCollection.items[1].title === '第三部' &&
+        typeof normalizedCollection.items[0].poster === 'string' &&
+        typeof normalizedCollection.cover === 'string',
+      `items=${normalizedCollection?.items?.map(item => item.title).join(',')}`,
     )
 
     /* ---------------- bad requests / envelopes ---------------- */

@@ -703,3 +703,64 @@ interleave so both indexes stay visible, page 2+ asks BitSearch only and caps
 the merged page at `limit`. The client appends the next page, deduping rows by
 info hash, and exposes a footer with `加载更多` / `正在加载…` / `没有更多了` /
 `加载更多失败` plus an IntersectionObserver sentinel for scroll loading.
+
+## TMDB collections (v1.13)
+
+### `GET /movie-workbench/api/detail?source=tmdb&id=<tmdb movie id>&lang=`
+
+`source` accepts `douban` or `tmdb`; `id` must be `1`–`12` digits
+(`400 bad_id`), and a missing `id` is `400 empty_id`. With no credential the
+route still answers `200` and reports the missing key instead of failing:
+
+```json
+{ "ok": true, "source": "tmdb", "id": "157336", "lang": "zh-CN",
+  "tookMs": 180, "detail": null,
+  "errors": [{ "source": "tmdb", "code": "tmdb_key_missing", "message": "No TMDB API key is configured." }] }
+```
+
+With a credential:
+
+```json
+{ "ok": true, "source": "tmdb", "id": "157336", "lang": "zh-CN", "tookMs": 210,
+  "detail": { "id": "157336", "title": "星际穿越", "kind": "movie", "year": 2014,
+    "overview": "…",
+    "collection": { "id": "86311", "name": "星际穿越合集",
+      "poster": "https://image.tmdb.org/t/p/w342/<poster_path>" } },
+  "errors": [] }
+```
+
+`collection` is `null` when the movie does not belong to a franchise (and for
+DouBan detail responses, whose shape is unchanged).
+
+### `GET /movie-workbench/api/collection?source=tmdb&id=<collection id>&lang=`
+
+`source` is required and must be `tmdb` (`400 bad_source`); `id` is required
+(`400 empty_id`) and numeric (`400 bad_id`). The response always answers `200`
+for a well-formed request:
+
+```json
+{ "ok": true, "source": "tmdb", "id": "86311", "lang": "zh-CN", "tookMs": 240,
+  "collection": { "id": "86311", "name": "星际穿越合集", "overview": "…",
+    "cover": "https://image.tmdb.org/t/p/w342/<poster_path>" },
+  "items": [ { "source": "tmdb", "id": "…", "title": "…", "kind": "movie", "…": "…" } ],
+  "errors": [] }
+```
+
+`items` are normalized movie results (the same shape as `/search`) sorted by
+release year and then title; a missing credential or an upstream failure yields
+`collection: null`, `items: []` and an `errors` entry (never a 5xx).
+
+Upstream: `https://api.themoviedb.org/3/movie/<id>` (`belongs_to_collection`)
+and `https://api.themoviedb.org/3/collection/<id>` (`parts`). The catalog uses
+the same v3 key / v4 bearer credential handling as the other TMDB routes.
+
+### Browser half
+
+The detail page lazily fetches `/detail?source=tmdb&id=` for TMDB movies and
+renders a 所属合集 card when `collection` is present. Opening it renders the
+collection page (`data-view="collection"`) with a 返回详情 back button; opening
+a part shows that title's detail page and its back button returns to the
+collection. The collection and its parts are cached in the session, and the
+page is covered by `tests/render-smoke.mjs` states `detail (collection)` and
+`collection`.
+

@@ -190,6 +190,13 @@ window.__ModuleLoader__.load({
       'detail.overviewLoading': '简介加载中…',
       'detail.noOverview': '该渠道没有提供简介。',
       'detail.open': '在 {source} 查看',
+      'collection.label': '所属合集',
+      'collection.open': '查看合集',
+      'collection.loading': '正在加载合集…',
+      'collection.failed': '合集加载失败',
+      'collection.empty': '该合集暂时没有可展示的作品',
+      'collection.back': '返回详情',
+      'collection.count': '共 {count} 部作品',
       'detail.rating': '评分',
       'detail.votes': '{count} 人评分',
       'kind.movie': '电影',
@@ -310,6 +317,13 @@ window.__ModuleLoader__.load({
       'detail.overviewLoading': 'Loading overview…',
       'detail.noOverview': 'This channel returned no overview.',
       'detail.open': 'Open on {source}',
+      'collection.label': 'Collection',
+      'collection.open': 'View collection',
+      'collection.loading': 'Loading collection…',
+      'collection.failed': 'Could not load the collection',
+      'collection.empty': 'This collection has no titles yet',
+      'collection.back': 'Back to title',
+      'collection.count': '{count} titles',
       'detail.rating': 'Rating',
       'detail.votes': '{count} votes',
       'kind.movie': 'Film',
@@ -823,6 +837,12 @@ window.__ModuleLoader__.load({
       '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
       '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
       '.mw-more-sentinel{display:flex;justify-content:center;}',
+      '.mw-collection{margin-top:18px;display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);}',
+      '.mw-collection-cover{width:48px;height:72px;flex:none;border-radius:6px;object-fit:cover;background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-collection-body{min-width:0;flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:3px;}',
+      '.mw-collection-label{font-size:11px;letter-spacing:0.04em;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-collection-name{font-size:14px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}',
+      '.mw-collection-note{margin:0 0 16px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
       '.mw-chart-section{margin-bottom:24px;}',
       '.mw-chart-section:last-child{margin-bottom:8px;}',
       '.mw-chart-section-head{display:flex;align-items:center;gap:8px;width:100%;padding:0 0 12px;border:0;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer;}',
@@ -2031,6 +2051,77 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** A TMDB collection page: every part of the franchise. */
+    function CollectionPage(props) {
+      const t = props.t
+      const view = props.view || {}
+      const collection = view.collection || {}
+      const items = Array.isArray(view.items) ? view.items : []
+      const backRef = useRef(null)
+
+      useEffect(() => {
+        if (backRef.current) backRef.current.focus()
+      }, [])
+
+      let body = null
+      if (view.status === 'loading') {
+        body = h(Skeleton, null)
+      } else if (view.status === 'error') {
+        body = h(ErrorState, {
+          t: t,
+          code: view.failure || 'network',
+          onRetry: props.onRetry,
+        })
+      } else if (items.length === 0) {
+        body = h(
+          'div',
+          { className: 'mw-idle' },
+          h(RecommendHint, { t: t, text: t('collection.empty') }),
+        )
+      } else {
+        body = h(
+          'div',
+          { className: 'mw-grid' },
+          items.map(item => h(ResultCard, {
+            key: searchKey(item),
+            t: t,
+            item: item,
+            showSource: false,
+            onSelect: props.onSelect,
+          })),
+        )
+      }
+
+      const note = [collection.overview, items.length > 0 ? t('collection.count', { count: items.length }) : '']
+        .filter(Boolean)
+        .join(' · ')
+
+      return h(
+        'div',
+        { className: 'mw-detail-page', role: 'region', 'aria-label': collection.name || String(collection.id || '') },
+        h(
+          'button',
+          { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
+          h(GlyphChevronLeft, { size: 15 }),
+          t('collection.back'),
+        ),
+        h(
+          'div',
+          { className: 'mw-channel-head' },
+          h('h2', { className: 'mw-channel-title' }, collection.name || String(collection.id || '')),
+          h(
+            'button',
+            { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onRetry },
+            h(GlyphRefresh, null),
+            ' ',
+            t('recommend.refresh'),
+          ),
+        ),
+        note ? h('p', { className: 'mw-collection-note' }, note) : null,
+        body,
+      )
+    }
+
     function DetailPage(props) {
       const t = props.t
       const item = props.item
@@ -2044,6 +2135,9 @@ window.__ModuleLoader__.load({
       const cachedDetail = session.details ? session.details[cacheKey] : null
       const [overview, setOverview] = useState(
         item.overview || (cachedDetail && cachedDetail.overview) || '',
+      )
+      const [collection, setCollection] = useState(
+        (cachedDetail && cachedDetail.collection) || null,
       )
       const [overviewPhase, setOverviewPhase] = useState(() => {
         if (item.overview) return 'done'
@@ -2077,6 +2171,34 @@ window.__ModuleLoader__.load({
           cancelled = true
         }
       }, [cacheKey, item.overview, item.source, item.id])
+      // TMDB movie details carry `belongs_to_collection`; load it lazily once
+      // per title so the page can offer the whole franchise.
+      useEffect(() => {
+        if (item.source !== 'tmdb' || item.kind !== 'movie') return undefined
+        const hit = session.details && session.details[cacheKey]
+        if (hit && 'collection' in hit) return undefined
+        let cancelled = false
+        callApi('/detail?source=tmdb&id=' + encodeURIComponent(String(item.id)))
+          .then((body) => {
+            if (cancelled) return
+            const detail = body && body.detail && typeof body.detail === 'object' ? body.detail : null
+            const found = detail && detail.collection && typeof detail.collection === 'object'
+              ? detail.collection
+              : null
+            if (!session.details) session.details = {}
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), collection: found }
+            setCollection(found)
+          })
+          .catch(() => {
+            if (cancelled) return
+            if (!session.details) session.details = {}
+            session.details[cacheKey] = { ...(session.details[cacheKey] || {}), collection: null }
+          })
+        return () => {
+          cancelled = true
+        }
+      }, [cacheKey, item.source, item.kind, item.id])
+
       const tags = []
       if (item.year) tags.push(h('span', { className: 'mw-tag', key: 'year' }, String(item.year)))
       tags.push(h('span', { className: 'mw-tag', key: 'kind' }, kindLabel(t, item.kind)))
@@ -2141,6 +2263,34 @@ window.__ModuleLoader__.load({
                 t('detail.open', { source: sourceLabel(t, item.source) }),
               ),
             ),
+            collection
+              ? h(
+                'div',
+                { className: 'mw-collection' },
+                collection.poster
+                  ? h(
+                    'span',
+                    { className: 'mw-collection-cover' },
+                    h('img', { src: posterUrl(collection.poster), alt: '', loading: 'lazy' }),
+                  )
+                  : null,
+                h(
+                  'div',
+                  { className: 'mw-collection-text' },
+                  h('p', { className: 'mw-collection-label' }, t('collection.label')),
+                  h('p', { className: 'mw-collection-name' }, collection.name),
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'mw-btn',
+                    onClick: () => props.onOpenCollection(collection),
+                  },
+                  t('collection.open'),
+                ),
+              )
+              : null,
           ),
         ),
         h(TorrentSection, { t: t, item: item }),
@@ -2245,6 +2395,7 @@ window.__ModuleLoader__.load({
       channels: {},
       lists: { movie: null, tv: null },
       chartView: null,
+      collectionView: null,
       torrents: {},
       details: {},
       sources: readSourcePrefs(),
@@ -2266,6 +2417,7 @@ window.__ModuleLoader__.load({
       const [channel, setChannel] = useState(session.channel)
       const [lists, setLists] = useState(session.lists || { movie: null, tv: null })
       const [chartView, setChartView] = useState(session.chartView)
+      const [collectionView, setCollectionView] = useState(session.collectionView)
       const [loadingMore, setLoadingMore] = useState(false)
       const [moreFailure, setMoreFailure] = useState(null)
       const [chartLoadingMore, setChartLoadingMore] = useState(false)
@@ -2289,6 +2441,9 @@ window.__ModuleLoader__.load({
       const chartRef = useRef(chartView)
       const chartAbortRef = useRef(null)
       const chartMoreRef = useRef(false)
+      const collectionRef = useRef(collectionView)
+      const collectionAbortRef = useRef(null)
+      const collectionReturnRef = useRef(null)
       const bodyRef = useRef(null)
       const recommendationLimitRef = useRef(12)
       const suggestionsLimitRef = useRef(0)
@@ -2327,7 +2482,9 @@ window.__ModuleLoader__.load({
         session.lists = lists
         session.chartView = chartView
         chartRef.current = chartView
-      }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView])
+        session.collectionView = collectionView
+        collectionRef.current = collectionView
+      }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView, collectionView])
       useEffect(() => {
         keyRef.current = storedKey
       }, [storedKey])
@@ -2889,6 +3046,75 @@ window.__ModuleLoader__.load({
         else focusTrigger()
       }
 
+      /** Open a TMDB collection and load every part of it. */
+      function openCollection(collection) {
+        collectionReturnRef.current = null
+        void loadCollection(collection)
+      }
+
+      async function loadCollection(collection) {
+        if (!collection || collection.id === null || typeof collection.id === 'undefined') return
+        if (collectionAbortRef.current) collectionAbortRef.current.abort()
+        const controller = new AbortController()
+        collectionAbortRef.current = controller
+        const loading = { collection: collection, status: 'loading', items: [], failure: null }
+        setCollectionView(loading)
+        session.collectionView = loading
+        const params = new URLSearchParams()
+        params.set('source', 'tmdb')
+        params.set('id', String(collection.id))
+        params.set('lang', languageForSearch(getLocale()))
+        const headers = { accept: 'application/json' }
+        if (keyRef.current) headers['x-mw-tmdb-key'] = keyRef.current
+        try {
+          const body = await callApi('/collection?' + params.toString(), { headers, signal: controller.signal })
+          if (controller.signal.aborted) return
+          const items = Array.isArray(body.items) ? body.items : []
+          const errors = Array.isArray(body.errors) ? body.errors : []
+          const view = {
+            collection: body.collection || collection,
+            status: 'done',
+            items: items,
+            failure: errors.length > 0 ? (errors[0].code || 'upstream_error') : null,
+          }
+          setCollectionView(view)
+          session.collectionView = view
+        } catch (error) {
+          if (controller.signal.aborted) return
+          const failed = {
+            collection: collection,
+            status: 'error',
+            items: [],
+            failure: error && error.code ? error.code : 'network',
+          }
+          setCollectionView(failed)
+          session.collectionView = failed
+        }
+      }
+
+      /** Reload the open collection. */
+      function retryCollection() {
+        const view = collectionRef.current
+        if (!view || !view.collection) return
+        void loadCollection(view.collection)
+      }
+
+      /** Return from a collection to the title detail page. */
+      function closeCollection() {
+        if (collectionAbortRef.current) collectionAbortRef.current.abort()
+        setCollectionView(null)
+        session.collectionView = null
+      }
+
+      /** Open one collection part, remembering to come back to the collection. */
+      function openCollectionItem(item) {
+        if (!item) return
+        collectionReturnRef.current = collectionRef.current
+        setSelectedItem(item)
+        setCollectionView(null)
+        session.collectionView = null
+      }
+
       /** Clear the open channel's cache and reload its first page. */
       function reloadChannel() {
         if (!channel) return
@@ -3067,6 +3293,13 @@ window.__ModuleLoader__.load({
 
       function backToResults() {
         setSelectedItem(null)
+        if (collectionReturnRef.current) {
+          const saved = collectionReturnRef.current
+          collectionReturnRef.current = null
+          setCollectionView(saved)
+          session.collectionView = saved
+          return
+        }
         const focusBack = () => {
           const node = inputRef.current
           if (node && typeof node.focus === 'function') node.focus()
@@ -3121,10 +3354,11 @@ window.__ModuleLoader__.load({
         'div',
         {
           className: 'mw-page',
-          'data-view': selectedItem ? 'detail' : chartView ? 'chart' : channel ? 'channel' : 'list',
+          'data-view': collectionView ? 'collection' : selectedItem ? 'detail' : chartView ? 'chart' : channel ? 'channel' : 'list',
           onKeyDown: event => {
             if (event.key === 'Escape' && !keyOpen && !settingsOpen) {
-              if (selectedItem) backToResults()
+              if (collectionView) closeCollection()
+              else if (selectedItem) backToResults()
               else if (channel) closeChannel()
               else if (phase !== 'idle') cancelSearch()
               else setSelectedItem(null)
@@ -3355,12 +3589,21 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'mw-body', ref: bodyRef },
-          selectedItem
+          collectionView
+            ? h(CollectionPage, {
+              t: t,
+              view: collectionView,
+              onBack: closeCollection,
+              onRetry: retryCollection,
+              onSelect: openCollectionItem,
+            })
+            : selectedItem
             ? h(DetailPage, {
               key: String(selectedItem.source) + '|' + String(selectedItem.id),
               t: t,
               item: selectedItem,
               onBack: backToResults,
+              onOpenCollection: openCollection,
             })
             : chartView
               ? h(ChartPage, {

@@ -17,6 +17,8 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
   官方榜单、年度榜单（2025–2021，含高分/热门两档）、高分经典（27 个类型）、近期热门（27 个类型）和
   冷门佳作（27 个类型）；剧集榜单包含官方榜单、年度榜单和高分经典 / 近期热门。
   无封面的榜单自动取第一名作品的封面，点开榜单按排名展示影片，同样支持下滑加载更多。
+- **TMDB 合集** — 电影属于某个合集时，详情页会展示所属合集；点进去可以查看合集里的
+  全部作品，并继续打开任意一部。
 - **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序，支持下滑/「加载更多」分页；
   可复制磁力链接或打开来源页。
 
@@ -59,7 +61,8 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `GET /browse?source=&category=&page=&cursor=&lang=` | 渠道浏览分类的一页（20 条），返回 `hasMore` 与 IMDb 的不透明 `next` 游标用于无限加载 |
 | `GET /charts?source=douban&kind=movie\|tv` | 单个榜单目录：`movie`（默认）含 3 个官方榜单（实时元数据）+ 10 个年度榜单（2025–2021 的高分/热门）+ 27 个类型冷门佳作 + 54 个分类题材榜单（共 94 个）；`tv` 含 3 个官方 + 10 个年度 + 54 个分类题材榜单（共 67 个，无冷门佳作） |
 | `GET /chart?source=douban&id=&start=&count=` | 某个榜单的一页按排名条目；`id` 为官方榜单 id、`year:<年份>:<S 或 U>`、`hidden:<类型>`、`genre:<类型>:<S 或 U>`，以及剧集形式 `tv-year:<年份>:<S 或 U>` / `tv-genre:<类型>:<S 或 U>`（S 高分经典，U 近期热门） |
-| `GET /detail?source=douban&id=` | 豆瓣条目的简介与元数据 |
+| `GET /detail?source=douban\|tmdb&id=` | 豆瓣条目的简介与元数据，或 TMDB 电影所属的合集信息 |
+| `GET /collection?source=tmdb&id=` | TMDB 合集里的全部作品（归一化电影结果） |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT 资源搜索；返回一页结果（`page` 1–20）及 `hasMore` 供下滑加载 |
 | `GET /image?url=` | 代理白名单图床的海报 |
 
