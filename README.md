@@ -20,14 +20,11 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   each genre; TV lists group 官方榜单, 年度榜单 and 高分经典 / 近期热门 for the same genres.
   Generated charts use their first title's poster as the card cover. Open a chart to see the
   ranked titles with the same paged infinite scroll.
-- **TMDB collections** — when a movie belongs to a franchise, its detail page shows the
-  collection; open it to browse every part of the collection and jump into any title.
-- **IMDb related titles** — an IMDb title's detail page shows its connection chain
-  (follows / followed by / spin-off); open 相关系列 to browse every related part, in
-  release order, and jump into any of them.
-- **DouBan rankings** — a DouBan title's detail page shows the official charts it is
-  featured in as a 收录于榜单 card; open it to browse every chart it appears in, then
-  open any chart to see its ranked titles.
+- **Related sections on the detail page** — TMDB collections, IMDb related titles and
+  DouBan charts are all shown as the same inline card: a cover, a name and a small meta
+  line. A TMDB collection opens the collection page; an IMDb 相关系列 card opens the
+  related-series page in release order; each DouBan 收录于榜单 card opens that chart's
+  ranked titles directly.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 

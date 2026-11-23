@@ -817,9 +817,12 @@ metadata (`subtitle`, `description`, `cover`, `total`) by fetching the subject
 collection metadata (six-hour cache); entries whose metadata request fails keep
 `id` and `title` only.
 
-DouBan detail pages render that array as a 收录于榜单 collection card under the
-actions. Opening it renders the rankings page (`data-view="rankings"`) with a
-返回详情 back button and one chart card per collection; opening a chart card
-shows the existing chart page (`data-view="chart"`), whose back button (返回榜单)
-returns to the rankings page. Covered by render-smoke states `detail (series)`,
-`series`, `detail (rankings)` and `rankings`.
+Detail pages show every related collection as the same inline card
+(`.mw-related` section with one `.mw-related-card` per item): a TMDB movie gets
+a 所属合集 card, an IMDb title a 相关系列 card (with its item count), and a DouBan
+title one 收录于榜单 card per chart (with the chart's total). Choosing a card opens
+the existing destination: the collection page (`data-view="collection"`), the
+related-series page (`data-view="series"`) or, for a DouBan chart, the chart page
+(`data-view="chart"`) directly — its back button (返回详情) returns to the title.
+Covered by render-smoke states `detail (collection)`, `detail (series)`,
+`detail (rankings)`, `collection` and `series`.

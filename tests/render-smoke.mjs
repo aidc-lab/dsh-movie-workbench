@@ -590,11 +590,10 @@ assert.ok(!doubanDetailHtml.includes('该渠道没有提供简介'), 'douban det
 const COLLECTION = { id: 86311, name: '星际穿越合集', poster: 'https://image.tmdb.org/t/p/w342/coll.jpg' }
 const detailCollectionHtml = renderState('detail (collection)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'tmdb|157336': ${JSON.stringify({ collection: COLLECTION })} } }`, [
   ['data-view="detail"', 'detail view'],
-  ['mw-collection', 'collection block'],
-  ['mw-collection-cover', 'collection cover'],
+  ['mw-related', 'related section'],
+  ['mw-related-card', 'related card'],
   ['所属合集', 'collection label'],
   ['星际穿越合集', 'collection name'],
-  ['查看合集', 'open-collection action'],
 ])
 
 const COLLECTION_VIEW = {
@@ -613,7 +612,7 @@ const collectionHtml = renderState('collection', `{ source: 'all', draft: '', da
   ['mw-grid', 'collection grid'],
   ['mw-card', 'collection cards'],
 ])
-assert.ok(!collectionHtml.includes('class="mw-collection"'), 'collection page is not the detail block')
+assert.ok(!collectionHtml.includes('class="mw-related-card"'), 'collection page is not the detail block')
 
 // An IMDb movie shows its connection chain (相关系列) and the related-series
 // page renders every part. The chain is seeded in the details cache because
@@ -627,10 +626,9 @@ const SERIES = {
 }
 const detailSeriesHtml = renderState('detail (series)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[1])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'imdb|tt0816692': ${JSON.stringify({ series: SERIES })} } }`, [
   ['data-view="detail"', 'detail view'],
-  ['mw-collection', 'series block'],
+  ['mw-related-card', 'series card'],
   ['相关系列', 'series label'],
   ['复仇者联盟系列', 'series title'],
-  ['查看系列', 'open-series action'],
   ['共 3 部作品', 'series title count'],
 ])
 const SERIES_VIEW = { status: 'done', series: SERIES, items: SERIES.items, failure: null }
@@ -653,25 +651,15 @@ const RANKINGS = [
 ]
 const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[2])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS })} } }`, [
   ['data-view="detail"', 'detail view'],
-  ['mw-collection', 'rankings card'],
+  ['mw-related', 'related section'],
   ['收录于榜单', 'rankings label'],
   ['高分经典冒险片榜', 'first chart name'],
-  ['查看榜单', 'open-rankings action'],
-  ['共 2 个榜单', 'rankings count'],
+  ['美国奇幻片榜', 'second chart name'],
+  ['共 50 部', 'first chart total'],
   ['data-empty="false"', 'cached synopsis renders'],
 ])
 
-const RANKINGS_VIEW = { status: 'done', items: RANKINGS, failure: null }
-const rankingsHtml = renderState('rankings', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, rankingsView: ${JSON.stringify(RANKINGS_VIEW)} }`, [
-  ['data-view="rankings"', 'rankings view'],
-  ['mw-detail-page', 'rankings page'],
-  ['返回详情', 'rankings back'],
-  ['收录于榜单', 'rankings heading'],
-  ['共 2 个榜单', 'rankings count'],
-  ['mw-chart-grid', 'rankings grid'],
-  ['mw-chart-card', 'rankings chart cards'],
-  ['高分经典冒险片榜', 'rankings first chart'],
-])
+assert.strictEqual((detailRankingsHtml.match(/class="mw-related-card"/g) || []).length, 2, 'rankings render one inline card per chart')
 
 const TORRENT_VIEW = {
   status: 'done',
@@ -775,7 +763,6 @@ console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')
 console.log('  detail series:', detailSeriesHtml.length, 'chars')
 console.log('  detail rankings:', detailRankingsHtml.length, 'chars')
-console.log('  rankings      :', rankingsHtml.length, 'chars')
 console.log('  series       :', seriesHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')
 console.log('  detail+torr end:', torrentEndHtml.length, 'chars')
