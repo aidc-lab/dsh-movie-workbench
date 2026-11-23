@@ -208,7 +208,11 @@ window.__ModuleLoader__.load({
       'series.truncated': '关系过多，仅展示前 {count} 部',
       'rankings.label': '收录于榜单',
       'rankings.open': '查看榜单',
+      'rankings.back': '返回详情',
+      'rankings.count': '共 {count} 个榜单',
+      'rankings.empty': '该条目暂未收录于任何榜单',
       'chart.backDetail': '返回详情',
+      'chart.backRankings': '返回榜单',
       'detail.rating': '评分',
       'detail.votes': '{count} 人评分',
       'kind.movie': '电影',
@@ -347,7 +351,11 @@ window.__ModuleLoader__.load({
       'series.truncated': 'Only the first {count} related titles are shown',
       'rankings.label': 'Featured in charts',
       'rankings.open': 'Open chart',
+      'rankings.back': 'Back to title',
+      'rankings.count': '{count} charts',
+      'rankings.empty': 'This title is not featured in any chart yet',
       'chart.backDetail': 'Back to title',
+      'chart.backRankings': 'Back to charts',
       'detail.rating': 'Rating',
       'detail.votes': '{count} votes',
       'kind.movie': 'Film',
@@ -1639,7 +1647,7 @@ window.__ModuleLoader__.load({
           'button',
           { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
           h(GlyphChevronLeft, { size: 15 }),
-          view.returnTo === 'detail' ? t('chart.backDetail') : t('chart.back'),
+          view.returnTo === 'rankings' ? t('chart.backRankings') : view.returnTo === 'detail' ? t('chart.backDetail') : t('chart.back'),
         ),
         h(
           'div',
@@ -2221,6 +2229,66 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** A collection-like page listing every official Douban chart a title appears in. */
+    function RankingsPage(props) {
+      const t = props.t
+      const view = props.view || {}
+      const items = Array.isArray(view.items) ? view.items : []
+      const backRef = useRef(null)
+
+      useEffect(() => {
+        if (backRef.current) backRef.current.focus()
+      }, [])
+
+      let body = null
+      if (view.status === 'loading') {
+        body = h(Skeleton, null)
+      } else if (view.status === 'error') {
+        body = h(ErrorState, {
+          t: t,
+          code: view.failure || 'network',
+          onRetry: props.onRetry,
+        })
+      } else if (items.length === 0) {
+        body = h(
+          'div',
+          { className: 'mw-idle' },
+          h(RecommendHint, { t: t, text: t('rankings.empty') }),
+        )
+      } else {
+        body = h(
+          'div',
+          { className: 'mw-chart-grid' },
+          items.map(chart => h(ChartCard, {
+            key: String(chart.id),
+            t: t,
+            chart: chart,
+            onOpen: props.onSelect,
+          })),
+        )
+      }
+
+      const note = items.length > 0 ? t('rankings.count', { count: items.length }) : ''
+
+      return h(
+        'div',
+        { className: 'mw-detail-page', role: 'region', 'aria-label': t('rankings.label') },
+        h(
+          'button',
+          { type: 'button', className: 'mw-back', ref: backRef, onClick: props.onBack },
+          h(GlyphChevronLeft, { size: 15 }),
+          t('rankings.back'),
+        ),
+        h(
+          'div',
+          { className: 'mw-channel-head' },
+          h('h2', { className: 'mw-channel-title' }, t('rankings.label')),
+        ),
+        note ? h('p', { className: 'mw-collection-note' }, note) : null,
+        body,
+      )
+    }
+
     function DetailPage(props) {
       const t = props.t
       const item = props.item
@@ -2469,19 +2537,30 @@ window.__ModuleLoader__.load({
             rankings.length > 0
               ? h(
                 'div',
-                { className: 'mw-rankings' },
-                h('span', { className: 'mw-rankings-label' }, t('rankings.label')),
-                rankings.map(ranking => h(
+                { className: 'mw-collection' },
+                rankings[0].cover
+                  ? h(
+                    'span',
+                    { className: 'mw-collection-cover' },
+                    h('img', { src: posterUrl(rankings[0].cover), alt: '', loading: 'lazy' }),
+                  )
+                  : null,
+                h(
+                  'div',
+                  { className: 'mw-collection-text' },
+                  h('p', { className: 'mw-collection-label' }, t('rankings.label')),
+                  h('p', { className: 'mw-collection-name' }, rankings[0].title),
+                  h('p', { className: 'mw-collection-count' }, t('rankings.count', { count: rankings.length })),
+                ),
+                h(
                   'button',
                   {
-                    key: String(ranking.id),
                     type: 'button',
-                    className: 'mw-chip',
-                    title: ranking.title,
-                    onClick: () => props.onOpenRanking(ranking),
+                    className: 'mw-btn',
+                    onClick: () => props.onOpenRankings(rankings),
                   },
-                  ranking.title,
-                )),
+                  t('rankings.open'),
+                ),
               )
               : null,
           ),
@@ -2590,6 +2669,7 @@ window.__ModuleLoader__.load({
       chartView: null,
       collectionView: null,
       seriesView: null,
+      rankingsView: null,
       torrents: {},
       details: {},
       sources: readSourcePrefs(),
@@ -2613,6 +2693,7 @@ window.__ModuleLoader__.load({
       const [chartView, setChartView] = useState(session.chartView)
       const [collectionView, setCollectionView] = useState(session.collectionView)
       const [seriesView, setSeriesView] = useState(session.seriesView)
+      const [rankingsView, setRankingsView] = useState(session.rankingsView)
       const [loadingMore, setLoadingMore] = useState(false)
       const [moreFailure, setMoreFailure] = useState(null)
       const [chartLoadingMore, setChartLoadingMore] = useState(false)
@@ -2642,6 +2723,9 @@ window.__ModuleLoader__.load({
       const seriesRef = useRef(seriesView)
       const seriesAbortRef = useRef(null)
       const seriesReturnRef = useRef(null)
+      const rankingsRef = useRef(rankingsView)
+      const rankingsDetailRef = useRef(null)
+      const rankingsReturnRef = useRef(null)
       const bodyRef = useRef(null)
       const recommendationLimitRef = useRef(12)
       const suggestionsLimitRef = useRef(0)
@@ -2684,6 +2768,8 @@ window.__ModuleLoader__.load({
         collectionRef.current = collectionView
         session.seriesView = seriesView
         seriesRef.current = seriesView
+        session.rankingsView = rankingsView
+        rankingsRef.current = rankingsView
       }, [data, phase, failureCode, selectedItem, suggestions, channel, lists, chartView, collectionView, seriesView])
       useEffect(() => {
         keyRef.current = storedKey
@@ -3236,12 +3322,19 @@ window.__ModuleLoader__.load({
 
       /** Return from a chart to the channel's 片单 tab. */
       function closeChart() {
+        const closed = chartRef.current
         if (chartAbortRef.current) chartAbortRef.current.abort()
         chartMoreRef.current = false
         setChartLoadingMore(false)
         setChartMoreFailure(null)
         setChartView(null)
         session.chartView = null
+        if (closed && closed.returnTo === 'rankings' && rankingsReturnRef.current) {
+          const saved = rankingsReturnRef.current
+          rankingsReturnRef.current = null
+          setRankingsView(saved)
+          session.rankingsView = saved
+        }
         const focusTrigger = () => {
           const node = channelTriggerRef.current
           if (node && typeof node.focus === 'function') node.focus()
@@ -3394,9 +3487,32 @@ window.__ModuleLoader__.load({
         session.seriesView = null
       }
 
+      /** Open the official Douban charts a title appears in as a collection-like page. */
+      function openRankings(collections) {
+        if (!Array.isArray(collections) || collections.length === 0) return
+        const saved = selectedItem
+        if (saved) rankingsDetailRef.current = saved
+        const view = { status: 'done', items: collections, failure: null }
+        setSelectedItem(null)
+        setRankingsView(view)
+        session.rankingsView = view
+      }
+
+      /** Return from the rankings page to the detail page it was opened from. */
+      function closeRankings() {
+        const saved = rankingsDetailRef.current
+        rankingsDetailRef.current = null
+        setRankingsView(null)
+        session.rankingsView = null
+        if (saved) setSelectedItem(saved)
+      }
+
       /** Open one of the Douban charts a title is listed in. */
       function openRanking(ranking) {
         if (!ranking || !ranking.id) return
+        rankingsReturnRef.current = rankingsRef.current
+        setRankingsView(null)
+        session.rankingsView = null
         void loadChartItems({
           id: 'collection:' + String(ranking.id),
           title: ranking.title,
@@ -3404,7 +3520,7 @@ window.__ModuleLoader__.load({
           description: ranking.description || '',
           total: Number.isInteger(ranking.total) ? ranking.total : null,
           cover: ranking.cover || null,
-        }, 'movie', 0, false, 'detail')
+        }, 'movie', 0, false, 'rankings')
       }
 
       /** Clear the open channel's cache and reload its first page. */
@@ -3653,12 +3769,13 @@ window.__ModuleLoader__.load({
         'div',
         {
           className: 'mw-page',
-          'data-view': collectionView ? 'collection' : seriesView ? 'series' : chartView ? 'chart' : selectedItem ? 'detail' : channel ? 'channel' : 'list',
+          'data-view': collectionView ? 'collection' : seriesView ? 'series' : rankingsView ? 'rankings' : chartView ? 'chart' : selectedItem ? 'detail' : channel ? 'channel' : 'list',
           onKeyDown: event => {
             if (event.key === 'Escape' && !keyOpen && !settingsOpen) {
               if (collectionView) closeCollection()
               else if (seriesView) closeSeries()
               else if (chartView) closeChart()
+              else if (rankingsView) closeRankings()
               else if (selectedItem) backToResults()
               else if (channel) closeChannel()
               else if (phase !== 'idle') cancelSearch()
@@ -3906,6 +4023,13 @@ window.__ModuleLoader__.load({
               onRetry: retrySeries,
               onSelect: openSeriesItem,
             })
+            : rankingsView
+            ? h(RankingsPage, {
+              t: t,
+              view: rankingsView,
+              onBack: closeRankings,
+              onSelect: openRanking,
+            })
             : selectedItem
             ? h(DetailPage, {
               key: String(selectedItem.source) + '|' + String(selectedItem.id),
@@ -3914,7 +4038,7 @@ window.__ModuleLoader__.load({
               onBack: backToResults,
               onOpenCollection: openCollection,
               onOpenSeries: openSeries,
-              onOpenRanking: openRanking,
+              onOpenRankings: openRankings,
             })
             : chartView
               ? h(ChartPage, {

@@ -645,19 +645,32 @@ const seriesHtml = renderState('series', `{ source: 'all', draft: '', data: ${JS
   ['mw-card', 'series cards'],
 ])
 
-// A Douban title lists the official charts it belongs to as chips; clicking one
-// opens the existing chart page (收录于榜单).
+// A Douban title lists the official charts it belongs to as a collection-like
+// card; opening it shows every chart as a clickable chart card (收录于榜单).
 const RANKINGS = [
   { id: 'film_genre_49', title: '高分经典冒险片榜', subtitle: '豆瓣榜单', description: '冒险片口碑榜', total: 50 },
   { id: 'ECVIOIPDI', title: '美国奇幻片榜', subtitle: '豆瓣榜单', description: '美国奇幻片榜', total: 20 },
 ]
 const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[2])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS })} } }`, [
   ['data-view="detail"', 'detail view'],
-  ['mw-rankings', 'rankings block'],
+  ['mw-collection', 'rankings card'],
   ['收录于榜单', 'rankings label'],
-  ['高分经典冒险片榜', 'first ranking chip'],
-  ['美国奇幻片榜', 'second ranking chip'],
+  ['高分经典冒险片榜', 'first chart name'],
+  ['查看榜单', 'open-rankings action'],
+  ['共 2 个榜单', 'rankings count'],
   ['data-empty="false"', 'cached synopsis renders'],
+])
+
+const RANKINGS_VIEW = { status: 'done', items: RANKINGS, failure: null }
+const rankingsHtml = renderState('rankings', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, rankingsView: ${JSON.stringify(RANKINGS_VIEW)} }`, [
+  ['data-view="rankings"', 'rankings view'],
+  ['mw-detail-page', 'rankings page'],
+  ['返回详情', 'rankings back'],
+  ['收录于榜单', 'rankings heading'],
+  ['共 2 个榜单', 'rankings count'],
+  ['mw-chart-grid', 'rankings grid'],
+  ['mw-chart-card', 'rankings chart cards'],
+  ['高分经典冒险片榜', 'rankings first chart'],
 ])
 
 const TORRENT_VIEW = {
@@ -762,6 +775,7 @@ console.log('  results      :', resultsHtml.length, 'chars')
 console.log('  detail       :', detailHtml.length, 'chars')
 console.log('  detail series:', detailSeriesHtml.length, 'chars')
 console.log('  detail rankings:', detailRankingsHtml.length, 'chars')
+console.log('  rankings      :', rankingsHtml.length, 'chars')
 console.log('  series       :', seriesHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')
 console.log('  detail+torr end:', torrentEndHtml.length, 'chars')

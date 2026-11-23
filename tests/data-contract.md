@@ -812,8 +812,14 @@ card (the same visual card as TMDB collections). Opening it renders the series
 page (`data-view="series"`) with a 返回详情 back button; opening a part shows
 that title's detail page and its back button returns to the series page.
 
-DouBan detail pages render the `collections` array from `/detail?source=douban`
-as 收录于榜单 chips under the actions; clicking a chip opens the existing chart
-page (`data-view="chart"`), whose back button returns to the detail page.
-Covered by render-smoke states `detail (series)`, `series` and
-`detail (rankings)`.
+`/detail?source=douban` enriches each entry of `collections` with the chart
+metadata (`subtitle`, `description`, `cover`, `total`) by fetching the subject
+collection metadata (six-hour cache); entries whose metadata request fails keep
+`id` and `title` only.
+
+DouBan detail pages render that array as a 收录于榜单 collection card under the
+actions. Opening it renders the rankings page (`data-view="rankings"`) with a
+返回详情 back button and one chart card per collection; opening a chart card
+shows the existing chart page (`data-view="chart"`), whose back button (返回榜单)
+returns to the rankings page. Covered by render-smoke states `detail (series)`,
+`series`, `detail (rankings)` and `rankings`.

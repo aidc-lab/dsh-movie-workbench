@@ -25,8 +25,9 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 - **IMDb related titles** — an IMDb title's detail page shows its connection chain
   (follows / followed by / spin-off); open 相关系列 to browse every related part, in
   release order, and jump into any of them.
-- **DouBan rankings** — a DouBan title's detail page lists the official charts it is
-  featured in (收录于榜单); open a chip to see that chart's ranked titles.
+- **DouBan rankings** — a DouBan title's detail page shows the official charts it is
+  featured in as a 收录于榜单 card; open it to browse every chart it appears in, then
+  open any chart to see its ranked titles.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
 
