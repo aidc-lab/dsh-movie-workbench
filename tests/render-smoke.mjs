@@ -590,6 +590,7 @@ assert.ok(!doubanDetailHtml.includes('该渠道没有提供简介'), 'douban det
 const COLLECTION = { id: 86311, name: '星际穿越合集', poster: 'https://image.tmdb.org/t/p/w342/coll.jpg' }
 const detailCollectionHtml = renderState('detail (collection)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'tmdb|157336': ${JSON.stringify({ collection: COLLECTION })} } }`, [
   ['data-view="detail"', 'detail view'],
+  ['mw-detail-side', 'related side rail'],
   ['mw-related', 'related section'],
   ['mw-related-card', 'related card'],
   ['所属合集', 'collection label'],
@@ -626,6 +627,7 @@ const SERIES = {
 }
 const detailSeriesHtml = renderState('detail (series)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[1])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'imdb|tt0816692': ${JSON.stringify({ series: SERIES })} } }`, [
   ['data-view="detail"', 'detail view'],
+  ['mw-detail-side', 'related side rail'],
   ['mw-related-card', 'series card'],
   ['相关系列', 'series label'],
   ['复仇者联盟系列', 'series title'],
@@ -651,6 +653,7 @@ const RANKINGS = [
 ]
 const detailRankingsHtml = renderState('detail (rankings)', `{ source: 'all', draft: '星际穿越', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[2])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, details: { 'douban|1889243': ${JSON.stringify({ overview: '一队探险家跨越虫洞。', collections: RANKINGS })} } }`, [
   ['data-view="detail"', 'detail view'],
+  ['mw-detail-side', 'related side rail'],
   ['mw-related', 'related section'],
   ['收录于榜单', 'rankings label'],
   ['高分经典冒险片榜', 'first chart name'],

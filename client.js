@@ -792,7 +792,10 @@ window.__ModuleLoader__.load({
       '.mw-page:not([data-view="list"]) .mw-toolbar,.mw-page:not([data-view="list"]) .mw-notices,.mw-page:not([data-view="list"]) .mw-results{display:none;}',
       '.mw-back{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px 0 8px;border-radius:15px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer;transition:color .15s ease,border-color .15s ease;}',
       '.mw-back:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2);}',
-      '.mw-item{display:flex;align-items:flex-start;gap:28px;margin-top:18px;}',
+      '.mw-detail-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start;margin-top:18px;}',
+      '.mw-detail-layout[data-side="true"]{grid-template-columns:minmax(0,1fr) 260px;}',
+      '.mw-detail-side{display:flex;flex-direction:column;gap:16px;min-width:0;}',
+      '.mw-item{display:flex;align-items:flex-start;gap:28px;min-width:0;}',
       '.mw-item-poster{flex:none;width:230px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);}',
       '.mw-item-poster img{width:100%;height:100%;display:block;object-fit:cover;}',
       '.mw-item-body{flex:1;min-width:0;}',
@@ -855,10 +858,10 @@ window.__ModuleLoader__.load({
       '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
       '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
       '.mw-more-sentinel{display:flex;justify-content:center;}',
-      '.mw-related{margin-top:18px;display:flex;flex-direction:column;gap:8px;}',
+      '.mw-related{display:flex;flex-direction:column;gap:8px;}',
       '.mw-related-label{font-size:11px;letter-spacing:0.04em;color:var(--dsw-alias-label-tertiary);}',
-      '.mw-related-cards{display:flex;flex-wrap:wrap;gap:10px;}',
-      '.mw-related-card{display:flex;align-items:center;gap:10px;min-width:0;max-width:300px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;appearance:none;}',
+      '.mw-related-cards{display:flex;flex-direction:column;gap:10px;}',
+      '.mw-related-card{display:flex;align-items:center;gap:10px;width:100%;min-width:0;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;appearance:none;}',
       '.mw-related-card:hover{background:var(--dsw-alias-bg-layer-2);}',
       '.mw-related-card:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
       '.mw-related-cover{display:block;width:40px;height:60px;flex:none;overflow:hidden;border-radius:6px;background:var(--dsw-alias-bg-layer-2);}',
@@ -866,6 +869,7 @@ window.__ModuleLoader__.load({
       '.mw-related-text{min-width:0;display:flex;flex-direction:column;gap:2px;}',
       '.mw-related-name{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
       '.mw-related-meta{font-size:11px;color:var(--dsw-alias-label-tertiary);}',
+      '@media (max-width:1023px){.mw-detail-layout[data-side="true"]{grid-template-columns:minmax(0,1fr);}.mw-related-cards{flex-direction:row;flex-wrap:wrap;}.mw-related-card{width:auto;max-width:300px;}}',
       '.mw-collection-note{margin:0 0 16px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
       '.mw-chart-section{margin-bottom:24px;}',
       '.mw-chart-section:last-child{margin-bottom:8px;}',
@@ -2386,6 +2390,45 @@ window.__ModuleLoader__.load({
         ))
       }
       const original = item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : ''
+      const relatedSections = []
+      if (collection) {
+        relatedSections.push(h(
+          RelatedSection,
+          { key: 'collection', label: t('collection.label') },
+          h(RelatedCard, {
+            key: 'collection-card',
+            cover: collection.poster,
+            name: collection.name,
+            onOpen: () => props.onOpenCollection(collection),
+          }),
+        ))
+      }
+      if (series && Array.isArray(series.items) && series.items.length > 1) {
+        relatedSections.push(h(
+          RelatedSection,
+          { key: 'series', label: t('series.label') },
+          h(RelatedCard, {
+            key: 'series-card',
+            cover: series.cover,
+            name: series.title || item.title || t('series.label'),
+            meta: t('series.count', { count: series.items.length }),
+            onOpen: () => props.onOpenSeries(series),
+          }),
+        ))
+      }
+      if (rankings.length > 0) {
+        relatedSections.push(h(
+          RelatedSection,
+          { key: 'rankings', label: t('rankings.label') },
+          rankings.map(ranking => h(RelatedCard, {
+            key: String(ranking.id),
+            cover: ranking.cover,
+            name: ranking.title,
+            meta: Number.isInteger(ranking.total) ? t('chart.count', { count: ranking.total }) : '',
+            onOpen: () => props.onOpenRanking(ranking),
+          })),
+        ))
+      }
       return h(
         'div',
         { className: 'mw-detail-page', role: 'region', 'aria-label': item.title },
@@ -2397,11 +2440,14 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'mw-item' },
-          h('div', { className: 'mw-item-poster' }, h(Poster, { item: item })),
+          { className: 'mw-detail-layout', 'data-side': relatedSections.length > 0 ? 'true' : 'false' },
           h(
             'div',
-            { className: 'mw-item-body' },
+            { className: 'mw-item' },
+            h('div', { className: 'mw-item-poster' }, h(Poster, { item: item })),
+            h(
+              'div',
+              { className: 'mw-item-body' },
             h('span', { className: 'mw-item-eyebrow' }, sourceLabel(t, item.source)),
             h('h2', { className: 'mw-item-title' }, item.title || item.originalTitle || item.id),
             original ? h('p', { className: 'mw-item-original' }, original) : null,
@@ -2436,45 +2482,11 @@ window.__ModuleLoader__.load({
                 t('detail.open', { source: sourceLabel(t, item.source) }),
               ),
             ),
-            collection
-              ? h(
-                RelatedSection,
-                { label: t('collection.label') },
-                h(RelatedCard, {
-                  key: 'collection',
-                  cover: collection.poster,
-                  name: collection.name,
-                  onOpen: () => props.onOpenCollection(collection),
-                }),
-              )
-              : null,
-            series && Array.isArray(series.items) && series.items.length > 1
-              ? h(
-                RelatedSection,
-                { label: t('series.label') },
-                h(RelatedCard, {
-                  key: 'series',
-                  cover: series.cover,
-                  name: series.title || item.title || t('series.label'),
-                  meta: t('series.count', { count: series.items.length }),
-                  onOpen: () => props.onOpenSeries(series),
-                }),
-              )
-              : null,
-            rankings.length > 0
-              ? h(
-                RelatedSection,
-                { label: t('rankings.label') },
-                rankings.map(ranking => h(RelatedCard, {
-                  key: String(ranking.id),
-                  cover: ranking.cover,
-                  name: ranking.title,
-                  meta: Number.isInteger(ranking.total) ? t('chart.count', { count: ranking.total }) : '',
-                  onOpen: () => props.onOpenRanking(ranking),
-                })),
-              )
-              : null,
+            ),
           ),
+          relatedSections.length > 0
+            ? h('aside', { className: 'mw-detail-side' }, relatedSections)
+            : null,
         ),
         h(TorrentSection, { t: t, item: item }),
       )
