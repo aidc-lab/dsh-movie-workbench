@@ -34,6 +34,18 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
   the same detail request.
 - **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
   loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
+- **AI resource pick** — click AI 选资源 above the BT list to open the dialog; evaluation only
+  starts when you press 开始评估. Pick a preference profile first: quality (best / balanced /
+  small size), language and subtitles, and the prompt will honour it when ranking. Switch to
+  自由模式 at the top right of the dialog to see and edit the exact prompt sent to the model
+  (the simple-mode choices are already mapped into it) and to inspect the model's raw output;
+  the required JSON answer format stays in the system prompt and is not editable. The dialog
+  footer shows the model in use and lets you switch it right there (defaults to the model set
+  in settings). The Host asks the model configured for this DSH profile (through the DSH LLM
+  service) to compare seeders, size, release quality and index reliability; a different model
+  can be chosen in the settings popover. The picked row is highlighted with an AI 推荐 badge
+  and the reason sits in a banner above the list. The answer is cached for the current title,
+  so reopening the dialog shows the previous result (and offers 重新评估).
 
 ## Installation
 
@@ -60,9 +72,14 @@ A Git URL also works:
 
 ## Data-source settings
 
-The gear button next to the TMDB Key button in the page header opens the data-source switches. The
-choice is stored in `localStorage` (`dsh-movie-workbench.sources`); at least one channel must stay
-enabled, and when only one is left the filter row collapses to that channel.
+The gear button next to the TMDB Key button in the page header opens the settings popover. The
+data-source switches are stored in `localStorage` (`dsh-movie-workbench.sources`); at least one
+channel must stay enabled, and when only one is left the filter row collapses to that channel.
+
+The same popover lists the models advertised by the profile's LLM providers (from the Host's
+`GET /models`) and lets you pick the one used by AI 选资源; the choice lives in
+`localStorage` (`dsh-movie-workbench.ai-model`), and 「跟随默认」 keeps following the profile
+model. Models are only available when the DSH LLM service and a model are configured.
 
 ## Host API
 
@@ -81,6 +98,8 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /series?source=imdb&id=` | the IMDb connection chain of one title (follows / followed by / spin-off), ordered by release year |
 | `GET /chart?source=douban&id=collection:<id>` | one of the official charts a DouBan title is listed in, with the same ranked envelope as other charts |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT resource search; one page of results (`page` 1–20) plus `hasMore` for scroll loading |
+| `GET /models` | models advertised by the profile's LLM providers, plus the current profile selection |
+| `POST /pick` | ask the Host's AI model to choose the best of up to 30 BT rows; body `{ item, rows, lang, preferences?, prompt?, preview?, model? }` (`preferences` = `{ quality, language, subtitle }`, `prompt` overrides the generated prompt, `preview: true` returns the prompt without calling a model), returns `pick` (`{id, rank, reason}`), `picks`, `prompt`, `preferences` and `errors` (`llm_unavailable` / `llm_no_model` / `bad_preferences` / `bad_prompt` / timeout) |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
 
 All upstream HTTP requests happen in the Host, so the page stays same-origin and DouBan's `Referer`

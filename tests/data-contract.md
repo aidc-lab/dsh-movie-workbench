@@ -878,3 +878,136 @@ rows whose `type` does not match the requested channel are dropped. As a
 result Douban list cards show `<year> · 电影/剧集` like the other channels,
 and the detail page finds a year there too. `/search` still uses
 `j/subject_suggest` (that payload already has `year`).
+
+## AI resource pick (v1.17)
+
+`POST /pick` is the only mutating endpoint. It asks the Host to compare BT
+rows with the DSH LLM service; the browser never sees provider credentials.
+
+Request:
+
+```json
+{
+  "item": { "source": "tmdb", "id": "157336", "title": "Interstellar", "kind": "movie", "year": 2014 },
+  "rows": [
+    { "id": "aaa111", "title": "Interstellar.2010.1080p.BluRay", "size": "4.8 GB",
+      "source": "bitsearch", "seeders": 480, "leechers": 60 }
+  ],
+  "lang": "zh-CN"
+}
+```
+
+- Body is JSON, at most 512 KiB (`400 body_too_large`), must be an object
+  (`400 bad_body`) and not empty (`400 empty_body`).
+- `rows` is required, at most 30 entries; empty → `400 empty_rows`, too many →
+  `400 too_many_rows`; rows without a string `id`/`title` are dropped and an
+  empty result → `400 invalid_rows`.
+- Only `POST` is accepted (`GET /pick` → `405` with `Allow: POST, OPTIONS`).
+
+Success envelope (`200`):
+
+```json
+{
+  "ok": true,
+  "source": "llm",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "tookMs": 2380,
+  "pick": { "id": "aaa111", "rank": 1, "reason": "做种最多且体积合理" },
+  "picks": [ { "id": "aaa111", "reason": "做种最多且体积合理" } ],
+  "analysis": "{\"best\":1}",
+  "errors": []
+}
+```
+
+- The model is chosen by an explicit body `model` (`{ provider, model }`) when
+  present and advertised by `GET /models` (otherwise `400 bad_model`), else by
+  `agentDefaultModel.currentSelection()` when the profile exposes it, otherwise
+  the first entry of the model catalog.
+- The prompt asks for JSON only (`{"best": <1-based index>, "reason": "…",
+  "picks": [{ "rank": 1, "id": <index>, "reason": "…" }] }`); the Host strips
+  code fences, parses the answer, maps the 1-based index back to the row `id`
+  and drops out-of-range picks. `analysis` is the raw (trimmed) answer.
+- Failures keep `ok: true` and `pick: null`, filling `errors[0]` with one of
+  `llm_unavailable` (no LLM service in this Host), `llm_no_model` (no routed
+  model), `llm_timeout` (45 s), the adapter failure code, or
+  `llm_unparseable` (no JSON in the answer).
+- The browser caches the result per title in `session.torrents[titleKey]`
+  alongside the torrent page, so reopening the detail page keeps the pick.
+
+## v1.18 — model catalog and explicit pick model
+
+`GET /models` reports the models the Host can route to, so the browser can offer
+a model setting without holding any credential.
+
+Request: `GET /models`.
+
+Response (`200`):
+
+```json
+{
+  "ok": true,
+  "source": "llm",
+  "selection": { "provider": "opencode-go", "model": "deepseek-v4.1-flash" },
+  "providers": [ { "id": "deepseek-official", "name": "DeepSeek" } ],
+  "models": [
+    {
+      "provider": "deepseek-official",
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "description": "Fast general-purpose chat model."
+    }
+  ],
+  "errors": []
+}
+```
+
+- `selection` mirrors `agentDefaultModel.currentSelection()` and is `null` when
+  the profile does not expose it.
+- `providers` lists `llm.listProviders()` as `{ id, name }`; `models` merges
+  `llm.listModels(provider.id)` for each provider (concurrently, bounded by a
+  timeout and at most 12 providers), normalized to
+  `{ provider, id, name, description? }`.
+- The catalog is cached in Host memory for 60 seconds; provider lookup failures
+  are recorded in `errors` (`catalog_error`) without failing the response.
+- Without an LLM service the response is still `200 ok:true` with
+  `errors: [{ source: "llm", code: "llm_unavailable", … }]`,
+  `selection: null`, empty `providers`/`models`.
+
+`POST /pick` accepts an optional `model` object:
+
+```json
+{ "item": { … }, "rows": [ … ], "lang": "zh-CN", "model": { "provider": "deepseek-official", "model": "deepseek-chat" } }
+```
+
+- Malformed values (missing/non-string fields, provider > 64 chars, model >
+  200 chars) or models not present in the catalog return `400 bad_model`.
+- A valid override is passed straight to `llm.stream({ provider, model, … })`;
+  the response echoes the provider/model actually used.
+
+Browser half: the settings popover loads `GET /models` when opened, stores the
+choice as `{ provider, model }` under `localStorage`
+`dsh-movie-workbench.ai-model`, and shows 「跟随默认」/「Follow the default」
+when no override is stored. AI 选资源 opens a dialog immediately but does not
+call the model until the user presses 开始评估 / Start evaluation. The dialog
+offers viewer preferences (quality `best|balanced|compact`, language
+`any|zh|en|ja|original`, subtitle `any|zh|bilingual|none`, persisted in
+`localStorage` under `dsh-movie-workbench.ai-prefs`), passes them to the Host as
+`preferences`, and the generated prompt asks the model to honour them first.
+The dialog header carries a 简单模式 / 自由模式 (Simple / Free mode) segmented
+control (the free choice is persisted under `dsh-movie-workbench.ai-free`).
+Free mode shows the preference summary and the prompt in an editable textarea:
+switching into it (or changing a preference while in it) calls `POST /pick` with
+`preview: true` to fetch the prompt generated from the current simple-mode
+choices, and 恢复默认 / Reset re-fetches it. The dialog is 760px wide on desktop
+and keeps its body scrollable. The dialog footer carries a model select (「跟随默认模型」 plus
+every catalog model); changing it writes the same `dsh-movie-workbench.ai-model` override as
+the settings popover, so the next `/pick` request uses it. The required JSON output contract
+lives in the **system** prompt and is never part of the editable user prompt: `preview: true`
+returns both `system` and `prompt`, and a free-mode edit replaces only `prompt`. When the
+textarea is non-empty it is sent as `prompt` and used verbatim. Results are cached per title in `session.torrents`, so reopening
+the dialog shows the previous result without a new request; free mode also shows
+the model's raw output. When a stored run is still marked `loading` but its
+request died (page switched away mid-call), the dialog reports an interrupted
+run instead of hanging. The stored model override is sent in the `/pick` body
+when present.

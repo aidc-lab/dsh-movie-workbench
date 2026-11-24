@@ -744,6 +744,49 @@ const torrentEndHtml = renderState('detail (torrents end)', torrentEndSession, [
   ['没有更多了', 'torrent end note'],
 ])
 assert.ok(!torrentEndHtml.includes('加载更多'), 'torrent end state has no load-more button')
+assert.ok(torrentHtml.includes('AI 选资源'), 'torrent toolbar offers the AI pick action')
+
+const AI_PICK = {
+  status: 'done',
+  pick: { id: TORRENT_VIEW.results[1].id, rank: 2, reason: '优先选择做种充足且体积合理的版本' },
+  picks: [{ id: TORRENT_VIEW.results[1].id, reason: '优先选择做种充足且体积合理的版本' }],
+  analysis: '{"best":2}',
+  errors: [],
+  provider: 'deepseek',
+  model: 'deepseek-chat',
+}
+const TORRENT_AI_VIEW = { ...TORRENT_VIEW, aiPick: AI_PICK }
+const torrentAiSession = `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, torrents: { "tmdb|157336": ${JSON.stringify(TORRENT_AI_VIEW)} } }`
+const torrentAiHtml = renderState('detail (torrents ai pick)', torrentAiSession, [
+  ['mw-ai-pick', 'AI pick banner'],
+  ['AI 推荐', 'AI badge'],
+  ['mw-torrent-row-pick', 'chosen row is highlighted'],
+  ['优先选择做种充足且体积合理的版本', 'AI reason is shown'],
+  ['AI 选资源', 'AI action button'],
+])
+assert.ok(
+  /<div class="mw-torrent-row mw-torrent-row-pick"/.test(torrentAiHtml),
+  'the picked row is highlighted in the torrent block',
+)
+assert.ok((torrentAiHtml.match(/<span class="mw-torrent-ai-badge">/g) || []).length === 1, 'exactly one row carries the AI badge')
+
+const TORRENT_AI_LOADING = { ...TORRENT_VIEW, aiPick: { status: 'loading' } }
+const torrentAiLoadingSession = `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, torrents: { "tmdb|157336": ${JSON.stringify(TORRENT_AI_LOADING)} } }`
+const torrentAiLoadingHtml = renderState('detail (torrents ai loading)', torrentAiLoadingSession, [
+  ['mw-ai-pick', 'AI pick banner'],
+  ['AI 正在挑选资源', 'loading copy'],
+])
+assert.ok(torrentAiLoadingHtml.includes('data-picking="true"'), 'AI button is disabled while picking')
+
+const TORRENT_AI_ERROR = {
+  ...TORRENT_VIEW,
+  aiPick: { status: 'error', pick: null, picks: [], analysis: '', errors: [{ source: 'llm', code: 'llm_unavailable', message: 'no llm' }], provider: null, model: null },
+}
+const torrentAiErrorSession = `{ source: 'all', draft: '', data: ${JSON.stringify(DATA)}, phase: 'done', failure: null, selectedItem: ${JSON.stringify(ITEMS[0])}, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {}, torrents: { "tmdb|157336": ${JSON.stringify(TORRENT_AI_ERROR)} } }`
+const torrentAiErrorHtml = renderState('detail (torrents ai error)', torrentAiErrorSession, [
+  ['mw-ai-pick', 'AI pick banner'],
+  ['当前环境未启用 AI 服务', 'unavailable copy'],
+])
 
 const errorHtml = renderState('error', "{ source: 'tmdb', draft: 'Inception', data: null, phase: 'error', failure: 'tmdb_key_missing', selectedItem: null, suggestions: null, channel: null, channels: {} }", [
   ['data-view="list"', 'list view'],
@@ -785,4 +828,7 @@ console.log('  detail rankings:', detailRankingsHtml.length, 'chars')
 console.log('  series       :', seriesHtml.length, 'chars')
 console.log('  detail+torr  :', torrentHtml.length, 'chars')
 console.log('  detail+torr end:', torrentEndHtml.length, 'chars')
+console.log('  detail+torr ai:', torrentAiHtml.length, 'chars')
+console.log('  detail+torr ai loading:', torrentAiLoadingHtml.length, 'chars')
+console.log('  detail+torr ai error:', torrentAiErrorHtml.length, 'chars')
 console.log('  error        :', errorHtml.length, 'chars')

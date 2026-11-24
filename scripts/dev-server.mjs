@@ -34,7 +34,7 @@
 
 import http from 'node:http'
 
-import { createHandler } from '../lib/host.js'
+import { createHandler, parsePickResponse } from '../lib/host.js'
 import {
   DEFAULT_USER_AGENT,
   IMDB_TRENDING_SEEDS,
@@ -1712,6 +1712,143 @@ async function main() {
       torrentsBadSource.response.status === 400 && torrentsBadSource.body?.code === 'bad_source',
       `HTTP ${torrentsBadSource.response.status}, code=${torrentsBadSource.body?.code}`,
     )
+    /* ---------------- POST /pick ---------------- */
+    const pickUrl = `${api}/pick`
+    const pickRows = torrentRows.slice(0, 4).map((row) => ({
+      id: row.id,
+      title: row.title,
+      size: row.size,
+      source: row.source,
+      seeders: row.seeders,
+      leechers: row.leechers,
+    }))
+    const pickPayload = {
+      item: { source: 'tmdb', id: '157336', title: 'Interstellar', kind: 'movie', year: 2014 },
+      rows: pickRows,
+      lang: 'zh-CN',
+    }
+    const postPick = (body, init) =>
+      getJson(pickUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+        ...init,
+      })
+
+    const pickNoService = await postPick(pickPayload)
+    check(
+      'POST /pick without an LLM service -> 200 ok:true with llm_unavailable',
+      pickNoService.response.status === 200 &&
+        pickNoService.body?.ok === true &&
+        pickNoService.body?.source === 'llm' &&
+        pickNoService.body?.pick === null &&
+        pickNoService.body?.errors?.[0]?.code === 'llm_unavailable',
+      `HTTP ${pickNoService.response.status}, code=${pickNoService.body?.errors?.[0]?.code}`,
+    )
+
+    const modelsNoService = await getJson(`${api}/models`)
+    check(
+      'GET /models without an LLM service -> 200 with llm_unavailable',
+      modelsNoService.response.status === 200 &&
+        modelsNoService.body?.ok === true &&
+        modelsNoService.body?.source === 'llm' &&
+        modelsNoService.body?.models?.length === 0 &&
+        modelsNoService.body?.errors?.[0]?.code === 'llm_unavailable',
+      `HTTP ${modelsNoService.response.status}, code=${modelsNoService.body?.errors?.[0]?.code}`,
+    )
+
+    const pickPreview = await postPick({ ...pickPayload, preview: true, preferences: { quality: 'best' } })
+    check(
+      'POST /pick preview returns the prompt without calling a model',
+      pickPreview.response.status === 200 &&
+        pickPreview.body?.ok === true &&
+        pickPreview.body?.preview === true &&
+        typeof pickPreview.body?.prompt === 'string' &&
+        pickPreview.body.prompt.includes('Interstellar') &&
+        !pickPreview.body.prompt.includes('只输出一行 JSON') &&
+        String(pickPreview.body?.system || '').includes('只输出一行 JSON') &&
+        pickPreview.body?.preferences?.quality === 'best',
+      `HTTP ${pickPreview.response.status}, promptLen=${String(pickPreview.body?.prompt || '').length}`,
+    )
+
+    const pickBadPrefs = await postPick({ ...pickPayload, preferences: { quality: 'ultra' } })
+    check(
+      'POST /pick with an unknown preference -> 400 bad_preferences',
+      pickBadPrefs.response.status === 400 && pickBadPrefs.body?.code === 'bad_preferences',
+      `HTTP ${pickBadPrefs.response.status}, code=${pickBadPrefs.body?.code}`,
+    )
+
+    const pickLongPrompt = await postPick({ ...pickPayload, prompt: 'x'.repeat(4001) })
+    check(
+      'POST /pick with an oversized prompt -> 400 bad_prompt',
+      pickLongPrompt.response.status === 400 && pickLongPrompt.body?.code === 'bad_prompt',
+      `HTTP ${pickLongPrompt.response.status}, code=${pickLongPrompt.body?.code}`,
+    )
+
+    const pickBadModel = await postPick({ ...pickPayload, model: { provider: 'x' } })
+    check(
+      'POST /pick with a malformed model field -> 400 bad_model',
+      pickBadModel.response.status === 400 && pickBadModel.body?.code === 'bad_model',
+      `HTTP ${pickBadModel.response.status}, code=${pickBadModel.body?.code}`,
+    )
+
+    const pickEmptyBody = await postPick(undefined)
+    check(
+      'POST /pick with an empty body -> 400 empty_body',
+      pickEmptyBody.response.status === 400 && pickEmptyBody.body?.code === 'empty_body',
+      `HTTP ${pickEmptyBody.response.status}, code=${pickEmptyBody.body?.code}`,
+    )
+
+    const pickBadBody = await postPick('{not json')
+    check(
+      'POST /pick with malformed JSON -> 400 bad_body',
+      pickBadBody.response.status === 400 && pickBadBody.body?.code === 'bad_body',
+      `HTTP ${pickBadBody.response.status}, code=${pickBadBody.body?.code}`,
+    )
+
+    const pickEmptyRows = await postPick({ ...pickPayload, rows: [] })
+    check(
+      'POST /pick with no rows -> 400 empty_rows',
+      pickEmptyRows.response.status === 400 && pickEmptyRows.body?.code === 'empty_rows',
+      `HTTP ${pickEmptyRows.response.status}, code=${pickEmptyRows.body?.code}`,
+    )
+
+    const pickTooManyRows = await postPick({
+      ...pickPayload,
+      rows: Array.from({ length: 31 }, (_, index) => ({ id: String(index), title: `Row ${index}` })),
+    })
+    check(
+      'POST /pick with 31 rows -> 400 too_many_rows',
+      pickTooManyRows.response.status === 400 && pickTooManyRows.body?.code === 'too_many_rows',
+      `HTTP ${pickTooManyRows.response.status}, code=${pickTooManyRows.body?.code}`,
+    )
+
+    const pickGet = await getJson(pickUrl)
+    check(
+      'GET /pick -> 405 method_not_allowed with Allow: POST',
+      pickGet.response.status === 405 &&
+        pickGet.body?.code === 'method_not_allowed' &&
+        String(pickGet.response.headers.get('allow') || '').includes('POST'),
+      `HTTP ${pickGet.response.status}, allow=${pickGet.response.headers.get('allow')}`,
+    )
+
+    const parseRows = pickRows.map((row) => ({ id: row.id }))
+    const parsedPick = parsePickResponse(
+      '```json\n{"best": 2, "reason": "做种最多且大小合理", "picks": [{"rank": 1, "id": 2, "reason": "做种最多"}]}\n```',
+      parseRows,
+    )
+    check(
+      'parsePickResponse accepts a fenced answer and resolves the 1-based row',
+      parsedPick.pick?.id === parseRows[1].id && parsedPick.pick?.rank === 2 && parsedPick.picks.length === 1,
+      JSON.stringify(parsedPick),
+    )
+    const parsedGarbage = parsePickResponse('no json here', parseRows)
+    check(
+      'parsePickResponse reports unparseable answers',
+      parsedGarbage.parseFailed === true && parsedGarbage.pick === null,
+      JSON.stringify(parsedGarbage),
+    )
+
     info(
       'torrents sample rows',
       torrentRows

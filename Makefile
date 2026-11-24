@@ -9,7 +9,7 @@ REGISTRY  ?= https://registry.npmjs.org
 NPM_CACHE ?=
 
 SOURCES := index.js client.js lib/host.js lib/providers.js scripts/dev-server.mjs \
-           tests/client-smoke.mjs tests/render-smoke.mjs
+           tests/client-smoke.mjs tests/render-smoke.mjs tests/pick-smoke.mjs
 
 NPMFLAGS = $(if $(NPM_CACHE),--cache $(NPM_CACHE))
 
@@ -26,6 +26,7 @@ check: ## Syntax-check every JavaScript file
 smoke: check ## Offline tests: panel registration and rendered page states
 	$(NODE) tests/client-smoke.mjs
 	$(NODE) tests/render-smoke.mjs
+	$(NODE) tests/pick-smoke.mjs
 
 test: smoke ## Alias for the offline test suite (no network)
 

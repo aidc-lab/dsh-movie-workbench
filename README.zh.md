@@ -26,6 +26,14 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
   （推荐数据不带年份）会用同一次详情请求补上发行年份。
 - **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序，支持下滑/「加载更多」分页；
   可复制磁力链接或打开来源页。
+- **AI 选资源** — 点击 BT 列表上方的「AI 选资源」会打开对话框，但只有按下「开始评估」才会
+  调用模型；评估前可先选偏好：画质（最高画质 / 均衡 / 小体积）、语言与字幕，提示词会按偏好
+  加权。对话框右上角可切换「简单模式 / 自由模式」，自由模式下简单模式选好的偏好已映射进
+  提示词，可直接查看并编辑，同时查看模型的原始输出；要求的 JSON 输出格式放在系统提示词里，
+  不可编辑。对话框底部会显示当前模型，也可以直接在那里切换（默认跟随设置里的模型）。Host
+  调用当前 DSH Profile 配置的模型（经由 DSH LLM 服务）综合做种、大小、片源质量与索引可靠性
+  挑出最佳资源；也可在设置里另选模型。被选中的行会高亮并显示「AI 推荐」徽标，列表上方展示推荐
+  理由。结果按当前条目缓存，再次打开对话框会直接展示上次结果，并支持「重新评估」。
 
 ## 安装
 
@@ -51,8 +59,12 @@ git+https://github.com/aidc-lab/dsh-movie-workbench.git`。
 
 ## 数据源设置
 
-页头 TMDB Key 按钮旁的齿轮按钮打开数据源开关。选择保存在 `localStorage`
+页头 TMDB Key 按钮旁的齿轮按钮打开设置弹层。数据源开关保存在 `localStorage`
 （`dsh-movie-workbench.sources`）；至少保留一个渠道，只剩一个时筛选行收起到该渠道。
+
+同一个弹层会列出 Profile 的 LLM 提供商所提供的模型（来自 Host 的 `GET /models`），可指定
+「AI 选资源」使用的模型；选择保存在 `localStorage`（`dsh-movie-workbench.ai-model`），
+「跟随默认」则始终跟随 Profile 当前模型。只有配置了 DSH LLM 服务与模型时才可用。
 
 ## Host API
 
@@ -71,6 +83,8 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `GET /series?source=imdb&id=` | 单个 IMDb 条目的相关系列（前作 / 续作 / 衍生），按上映年份排序 |
 | `GET /chart?source=douban&id=collection:<id>` | 豆瓣条目收录的某个官方榜单，返回结构与其他榜单一致 |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT 资源搜索；返回一页结果（`page` 1–20）及 `hasMore` 供下滑加载 |
+| `GET /models` | Profile 的 LLM 提供商所提供的模型，以及当前 Profile 选中的模型 |
+| `POST /pick` | 让 Host 端 AI 模型从最多 30 条 BT 资源中挑选最佳；请求体 `{ item, rows, lang, preferences?, prompt?, preview?, model? }`（`preferences` 为 `{ quality, language, subtitle }`，`prompt` 覆盖默认提示词，`preview: true` 只返回提示词不调用模型），返回 `pick`（`{id, rank, reason}`）、`picks`、`prompt`、`preferences` 与 `errors`（`llm_unavailable` / `llm_no_model` / `bad_preferences` / `bad_prompt` / 超时等） |
 | `GET /image?url=` | 代理白名单图床的海报 |
 
 所有上游 HTTP 请求都在 Host 完成，因此页面保持同源，豆瓣的 `Referer` 要求也在服务端

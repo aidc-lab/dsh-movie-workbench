@@ -23,6 +23,7 @@ window.__ModuleLoader__.load({
     const KEY_STORAGE = 'dsh-movie-workbench.tmdb-key'
     const RECENT_STORAGE = 'dsh-movie-workbench.recent-searches'
     const SOURCES_STORAGE = 'dsh-movie-workbench.sources'
+    const AI_MODEL_STORAGE = 'dsh-movie-workbench.ai-model'
     /* Earlier builds stored both values under the `movies-workbench.` prefix;
        read through to the legacy keys so an existing key and search history
        survive the rename. */
@@ -144,6 +145,13 @@ window.__ModuleLoader__.load({
       'chart.loading': '正在加载片单…',
       'chart.failed': '片单加载失败',
       'chart.empty': '该榜单暂时没有内容',
+      'torrent.aiPick': 'AI 选资源',
+      'torrent.aiPicking': 'AI 正在挑选资源…',
+      'torrent.aiFailed': 'AI 挑选失败',
+      'torrent.aiUnavailable': '当前环境未启用 AI 服务',
+      'torrent.aiNoModel': '未配置可用的 AI 模型',
+      'torrent.aiRecommend': 'AI 推荐',
+      'torrent.aiNoPick': 'AI 没有给出明确推荐',
       'torrent.title': 'BT 资源',
       'torrent.note': '来自公开 BT 索引，仅供检索，请自行判断内容合法性',
       'torrent.loading': '正在搜索 BT 资源…',
@@ -227,6 +235,61 @@ window.__ModuleLoader__.load({
       'settings.sourcesHint': '关闭后该数据源不再出现在推荐、筛选项和搜索结果中。',
       'settings.toggle': '切换 {source} 数据源',
       'settings.lastSource': '至少保留一个数据源。',
+      'settings.defaultModel': '默认模型',
+      'settings.usage': '用途',
+      'settings.modelColumn': '模型',
+      'settings.aiPickUsage': 'AI 选资源',
+      'settings.aiModelLoading': '正在读取可用模型…',
+      'settings.aiModelEmpty': '当前 Profile 没有可选的模型。',
+      'settings.aiModelFailed': '读取模型列表失败',
+      'settings.aiModelRetry': '重试',
+      'aiDialog.title': 'AI 选资源',
+      'aiDialog.close': '关闭',
+      'aiDialog.prefs': '选择倾向',
+      'aiDialog.quality': '画质',
+      'aiDialog.quality.best': '最高画质',
+      'aiDialog.quality.balanced': '均衡',
+      'aiDialog.quality.compact': '小体积',
+      'aiDialog.language': '语言',
+      'aiDialog.language.any': '不限',
+      'aiDialog.language.zh': '国语',
+      'aiDialog.language.en': '英语',
+      'aiDialog.language.ja': '日语',
+      'aiDialog.language.original': '原声',
+      'aiDialog.subtitle': '字幕',
+      'aiDialog.subtitle.any': '不限',
+      'aiDialog.subtitle.zh': '中文字幕',
+      'aiDialog.subtitle.bilingual': '中英双语',
+      'aiDialog.subtitle.none': '不需要',
+      'aiDialog.modeSimple': '简单模式',
+      'aiDialog.modeFree': '自由模式',
+      'aiDialog.freeHint': '可直接编辑发送给模型的提示词，并查看模型的原始输出。',
+      'aiDialog.prefSummary': '当前偏好：{summary}',
+      'aiDialog.prompt': '提示词',
+      'aiDialog.promptPlaceholder': '留空则使用默认提示词（含候选项）。',
+      'aiDialog.promptLoading': '正在生成默认提示词…',
+      'aiDialog.promptFailed': '提示词生成失败',
+      'aiDialog.resetPrompt': '恢复默认',
+      'aiDialog.raw': '模型原始输出',
+      'aiDialog.running': '模型正在比较这些资源…',
+      'aiDialog.elapsed': '已用时 {seconds} 秒',
+      'aiDialog.modelLabel': '模型',
+      'aiDialog.modelLoading': '正在加载模型…',
+      'aiDialog.modelHint': '切换评估使用的模型',
+      'aiDialog.modelEmpty': '暂无可用模型',
+      'aiDialog.defaultModel': '跟随默认模型',
+      'aiDialog.result': '推荐结果',
+      'aiDialog.reason': '推荐理由',
+      'aiDialog.failed': '挑选失败',
+      'aiDialog.retry': '重新挑选',
+      'aiDialog.unavailable': '当前环境未启用 AI 服务',
+      'aiDialog.noModel': '未配置可用的 AI 模型',
+      'aiDialog.noPick': 'AI 没有给出明确推荐',
+      'aiDialog.overlayClose': '关闭弹窗',
+      'aiDialog.start': '开始评估',
+      'aiDialog.reevaluate': '重新评估',
+      'aiDialog.intro': 'AI 会综合做种数、体积、画质与来源可靠性，从这些候选资源中挑出一个更值得下载的。',
+      'aiDialog.interrupted': '上次评估已中断，请重新评估。',
       'aria.results': '检索结果',
       'aria.group': '{source}的结果',
     }
@@ -280,6 +343,13 @@ window.__ModuleLoader__.load({
       'chart.loading': 'Loading lists…',
       'chart.failed': 'Could not load lists',
       'chart.empty': 'This chart is empty',
+      'torrent.aiPick': 'Pick with AI',
+      'torrent.aiPicking': 'AI is picking a torrent…',
+      'torrent.aiFailed': 'AI pick failed',
+      'torrent.aiUnavailable': 'The AI service is not available here',
+      'torrent.aiNoModel': 'No AI model is configured',
+      'torrent.aiRecommend': 'AI pick',
+      'torrent.aiNoPick': 'The model did not pick a torrent',
       'torrent.title': 'BT resources',
       'torrent.note': 'From public torrent indexes; search only — check legality yourself',
       'torrent.loading': 'Searching torrent indexes…',
@@ -363,6 +433,61 @@ window.__ModuleLoader__.load({
       'settings.sourcesHint': 'A disabled source is hidden from recommendations, filters and search results.',
       'settings.toggle': 'Toggle the {source} source',
       'settings.lastSource': 'Keep at least one source enabled.',
+      'settings.defaultModel': 'Default model',
+      'settings.usage': 'Usage',
+      'settings.modelColumn': 'Model',
+      'settings.aiPickUsage': 'AI pick',
+      'settings.aiModelLoading': 'Loading available models…',
+      'settings.aiModelEmpty': 'This profile has no selectable model.',
+      'settings.aiModelFailed': 'Could not load the model list',
+      'settings.aiModelRetry': 'Retry',
+      'aiDialog.title': 'AI torrent pick',
+      'aiDialog.close': 'Close',
+      'aiDialog.prefs': 'Preferences',
+      'aiDialog.quality': 'Quality',
+      'aiDialog.quality.best': 'Best quality',
+      'aiDialog.quality.balanced': 'Balanced',
+      'aiDialog.quality.compact': 'Small size',
+      'aiDialog.language': 'Language',
+      'aiDialog.language.any': 'Any',
+      'aiDialog.language.zh': 'Mandarin',
+      'aiDialog.language.en': 'English',
+      'aiDialog.language.ja': 'Japanese',
+      'aiDialog.language.original': 'Original audio',
+      'aiDialog.subtitle': 'Subtitles',
+      'aiDialog.subtitle.any': 'Any',
+      'aiDialog.subtitle.zh': 'Chinese',
+      'aiDialog.subtitle.bilingual': 'Bilingual',
+      'aiDialog.subtitle.none': 'None',
+      'aiDialog.modeSimple': 'Simple',
+      'aiDialog.modeFree': 'Free mode',
+      'aiDialog.freeHint': 'Edit the prompt sent to the model and inspect its raw output.',
+      'aiDialog.prefSummary': 'Preferences: {summary}',
+      'aiDialog.prompt': 'Prompt',
+      'aiDialog.promptPlaceholder': 'Leave empty to use the default prompt (includes the candidates).',
+      'aiDialog.promptLoading': 'Building the default prompt…',
+      'aiDialog.promptFailed': 'Could not build the prompt',
+      'aiDialog.resetPrompt': 'Reset',
+      'aiDialog.raw': 'Raw model output',
+      'aiDialog.running': 'The model is comparing these torrents…',
+      'aiDialog.elapsed': '{seconds}s elapsed',
+      'aiDialog.modelLabel': 'Model',
+      'aiDialog.modelLoading': 'Loading models…',
+      'aiDialog.modelHint': 'Change the model used for the evaluation',
+      'aiDialog.modelEmpty': 'No models available',
+      'aiDialog.defaultModel': 'Profile default',
+      'aiDialog.result': 'Result',
+      'aiDialog.reason': 'Reason',
+      'aiDialog.failed': 'Pick failed',
+      'aiDialog.retry': 'Pick again',
+      'aiDialog.unavailable': 'The AI service is not available here',
+      'aiDialog.noModel': 'No AI model is configured',
+      'aiDialog.noPick': 'The model did not pick a torrent',
+      'aiDialog.overlayClose': 'Close the dialog',
+      'aiDialog.start': 'Start evaluation',
+      'aiDialog.reevaluate': 'Evaluate again',
+      'aiDialog.intro': 'The AI compares seeders, size, quality and index reliability to pick the most worthwhile torrent.',
+      'aiDialog.interrupted': 'The last evaluation was interrupted. Please evaluate again.',
       'aria.results': 'Search results',
       'aria.group': 'Results from {source}',
     }
@@ -412,6 +537,46 @@ window.__ModuleLoader__.load({
     }
 
     /** Enabled data sources; a missing entry means "on", so new sources default on. */
+    function readAiModelPrefs() {
+      const value = readStorage(AI_MODEL_STORAGE, null)
+      if (!value || typeof value !== 'object') return null
+      const provider = typeof value.provider === 'string' ? value.provider.trim() : ''
+      const model = typeof value.model === 'string' ? value.model.trim() : ''
+      return provider && model ? { provider: provider, model: model } : null
+    }
+
+    const AI_PICK_PREFS_STORAGE = 'dsh-movie-workbench.ai-prefs'
+    const AI_FREE_STORAGE = 'dsh-movie-workbench.ai-free'
+    const AI_PICK_PREF_VALUES = {
+      quality: ['best', 'balanced', 'compact'],
+      language: ['any', 'zh', 'en', 'ja', 'original'],
+      subtitle: ['any', 'zh', 'bilingual', 'none'],
+    }
+    const AI_PICK_PREF_DEFAULTS = { quality: 'balanced', language: 'any', subtitle: 'any' }
+
+    /** Viewer preferences for the AI picker; unknown/missing values fall back. */
+    function readAiPickPrefs() {
+      const value = readStorage(AI_PICK_PREFS_STORAGE, null)
+      const prefs = { ...AI_PICK_PREF_DEFAULTS }
+      if (!value || typeof value !== 'object') return prefs
+      Object.keys(AI_PICK_PREF_DEFAULTS).forEach(key => {
+        if (typeof value[key] === 'string' && AI_PICK_PREF_VALUES[key].indexOf(value[key]) !== -1) prefs[key] = value[key]
+      })
+      return prefs
+    }
+
+    function writeAiPickPrefs(next) {
+      writeStorage(AI_PICK_PREFS_STORAGE, next)
+    }
+
+    function readAiFreeMode() {
+      return readStorage(AI_FREE_STORAGE, false) === true
+    }
+
+    function writeAiFreeMode(value) {
+      writeStorage(AI_FREE_STORAGE, Boolean(value))
+    }
+
     function readSourcePrefs() {
       const fallback = { tmdb: true, imdb: true, douban: true }
       const value = readStorage(SOURCES_STORAGE, null)
@@ -648,6 +813,15 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function GlyphSparkle(props) {
+      const size = props.size || 14
+      return h(
+        'svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', style: SVG, 'aria-hidden': 'true' },
+        h('path', { d: 'M11 3.5c.5 3.7 2.5 5.7 6.2 6.2-3.7.5-5.7 2.5-6.2 6.2-.5-3.7-2.5-5.7-6.2-6.2 3.7-.5 5.7-2.5 6.2-6.2Z', stroke: 'currentColor', strokeWidth: 1.6, strokeLinejoin: 'round' }),
+        h('path', { d: 'M18 14.5c.3 1.7 1.3 2.7 3 3-1.7.3-2.7 1.3-3 3-.3-1.7-1.3-2.7-3-3 1.7-.3 2.7-1.3 3-3Z', stroke: 'currentColor', strokeWidth: 1.4, strokeLinejoin: 'round' }),
+      )
+    }
+
     function GlyphRefresh(props) {
       const size = props.size || 16
       return h(
@@ -823,6 +997,18 @@ window.__ModuleLoader__.load({
       '.mw-sort-arrow{font-size:11px;line-height:1;}',
       '.mw-torrent-list{display:flex;flex-direction:column;gap:8px;}',
       '.mw-torrent-row{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);}',
+      '.mw-torrent-row-pick{border-color:var(--dsw-alias-brand-primary);}',
+      '.mw-torrent-ai-badge{margin-left:6px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-foreground);font-size:10.5px;line-height:16px;display:inline-block;vertical-align:1px;white-space:nowrap;}',
+      '.mw-ai-pick{display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;padding:10px 12px;border-radius:10px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary);}',
+      '.mw-ai-pick[data-state="done"]{border-color:var(--dsw-alias-brand-primary);}',
+      '.mw-ai-pick[data-state="error"]{color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-pick[data-state="empty"]{color:var(--dsw-alias-label-tertiary);}',
+      '.mw-ai-pick > svg{flex:none;margin-top:1px;color:var(--dsw-alias-brand-primary);}',
+      '.mw-ai-pick-text{min-width:0;flex:1;}',
+      '.mw-ai-pick-reason{color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-pick-dot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-brand-primary);margin-top:5px;flex:none;animation:mw-pulse 1.2s ease-in-out infinite;}',
+      '.mw-ai-pick-btn{display:inline-flex;align-items:center;gap:4px;color:var(--dsw-alias-brand-primary);}',
+      '.mw-ai-pick-btn[data-picking="true"]{opacity:.6;}',
       '.mw-torrent-main{flex:1;min-width:0;}',
       '.mw-torrent-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:0 0 4px;font-size:13px;line-height:19px;color:var(--dsw-alias-label-primary);}',
       '.mw-torrent-meta{display:flex;flex-wrap:wrap;gap:4px 10px;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
@@ -942,6 +1128,86 @@ window.__ModuleLoader__.load({
       '.mw-switch:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
       '.mw-switch-thumb{position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:var(--dsw-alias-label-primary-foreground);transition:transform .15s ease;}',
       '.mw-switch[data-on="true"] .mw-switch-thumb{transform:translateX(16px);}',
+      '.mw-settings-divider{height:0.5px;margin:12px 0;background:var(--dsw-alias-border-l1);}',
+      '.mw-settings-subtitle{margin-top:0;font-size:12px;}',
+      '.mw-setting-note{margin:6px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-model-trigger[data-layout="stacked"]{width:100%;max-width:none;height:auto;min-height:38px;padding:6px 10px;align-items:flex-start;justify-content:space-between;text-align:left;}',
+      '.mw-model-trigger-stack{display:flex;flex-direction:column;gap:1px;min-width:0;}',
+      '.mw-model-trigger-name{font-size:12.5px;line-height:17px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.mw-model-trigger-sub{font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.mw-setting-table{margin-top:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;}',
+      '.mw-setting-table-head{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;padding:6px 10px;background:var(--dsw-alias-bg-layer-2);border-bottom:1px solid var(--dsw-alias-border-l1);border-radius:9px 9px 0 0;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-setting-table-row{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;align-items:center;padding:8px 10px;}',
+      '.mw-setting-table-label{font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary);}',
+      '.mw-setting-table-model{min-width:0;}',
+      '.mw-setting-table-note{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-setting-ai-model{align-items:flex-start;}',
+      '.mw-setting-select{flex:none;max-width:150px;height:30px;padding:0 26px 0 8px;font-size:12px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);border:0.5px solid var(--dsw-alias-border-l1);cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 13px) 13px,calc(100% - 9px) 13px;background-size:4px 4px,4px 4px;background-repeat:no-repeat;}',
+      '.mw-setting-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px;}',
+      '.mw-modal-overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:24px;padding-top:calc(28px + var(--dsh-frame-top-clearance,0px) + 16px);background:color-mix(in srgb,var(--dsw-alias-bg-overlay) 48%,transparent);-webkit-app-region:no-drag;}',
+      '.mw-modal{display:flex;flex-direction:column;width:min(520px,100%);-webkit-app-region:no-drag;max-height:min(78vh,620px);border-radius:14px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);box-shadow:0 18px 48px color-mix(in srgb,var(--dsw-alias-bg-overlay) 32%,transparent);overflow:hidden;}',
+      '.mw-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 10px;}',
+      '.mw-modal-title{margin:0;font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary);}',
+      '.mw-modal-close{flex:none;width:28px;height:28px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:18px;line-height:1;cursor:pointer;}',
+      '.mw-modal-close:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);}',
+      '.mw-modal-close:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px;}',
+      '.mw-modal-body{flex:1;min-height:0;overflow:auto;padding:0 16px 4px;}',
+      '.mw-modal-head-actions{display:flex;align-items:center;gap:10px;flex:none;}',
+      '.mw-ai-dialog{width:min(760px,100%);max-height:min(76vh,720px);overflow:visible;}',
+      '.mw-ai-mode{display:inline-flex;align-items:center;padding:2px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-ai-mode-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;cursor:pointer;}',
+      '.mw-ai-mode-btn:hover{color:var(--dsw-alias-label-primary);}',
+      '.mw-ai-mode-btn[data-selected="true"]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 2px color-mix(in srgb,var(--dsw-alias-bg-overlay) 18%,transparent);}',
+      '.mw-ai-mode-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px;}',
+      '.mw-ai-pref-summary{margin:0 0 10px;font-size:12px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-dialog-item{margin:0 0 10px;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;}',
+      '.mw-ai-dialog-intro{margin:0 0 12px;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;}',
+      '.mw-ai-prefs{display:flex;flex-direction:column;gap:8px;margin:0 0 12px;}',
+      '.mw-ai-pref{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}',
+      '.mw-ai-pref-label{min-width:44px;font-size:12px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-pref-chips{display:flex;gap:6px;flex-wrap:wrap;}',
+      '.mw-ai-pref-chip{appearance:none;height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:12px;cursor:pointer;}',
+      '.mw-ai-pref-chip:hover{background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-ai-pref-chip[data-selected="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);background:color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);}',
+      '.mw-ai-free-hint{margin:0 0 10px;font-size:11.5px;line-height:17px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-ai-prompt{margin:0 0 10px;padding:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);}',
+      '.mw-ai-prompt-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;}',
+      '.mw-ai-prompt-title{font-size:12px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-prompt-input{box-sizing:border-box;width:100%;min-height:240px;padding:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:18px;resize:vertical;}',
+      '.mw-ai-prompt-input:focus{outline:none;border-color:var(--dsw-alias-brand-primary);}',
+      '.mw-ai-prompt-note{margin:6px 0 0;font-size:11px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-ai-running{margin:0 0 10px;font-size:12px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-raw{margin:8px 0 0;padding:8px;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:11.5px;line-height:17px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;}',
+      '.mw-ai-dialog-actions{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}',
+      '.mw-ai-dialog-model-picker{display:flex;align-items:center;gap:8px;min-width:0;position:relative;}',
+      '.mw-ai-dialog-model-label{font-size:12px;color:var(--dsw-alias-label-secondary);flex:none;}',
+      '.mw-model-trigger{display:inline-flex;align-items:center;gap:8px;height:32px;max-width:300px;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:12.5px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease;}',
+      '.mw-model-trigger:hover{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2);}',
+      '.mw-model-trigger:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
+      '.mw-model-trigger-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.mw-model-trigger-chevron{display:inline-flex;flex:none;color:var(--dsw-alias-label-tertiary);transition:transform .15s ease;}',
+      '.mw-model-trigger[aria-expanded="true"] .mw-model-trigger-chevron{transform:rotate(180deg);}',
+      '.mw-model-picker{position:relative;min-width:0;}',
+      '.mw-model-panel{position:absolute;left:0;z-index:6;width:min(340px,calc(100vw - 48px));max-height:280px;overflow:auto;padding:6px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 14px 34px color-mix(in srgb,var(--dsw-alias-bg-overlay) 22%,transparent);}',
+      '.mw-model-panel[data-placement="up"]{bottom:calc(100% + 8px);top:auto;}',
+      '.mw-model-panel[data-placement="down"]{top:calc(100% + 6px);bottom:auto;left:auto;right:0;width:min(320px,calc(100vw - 48px));}',
+      '.mw-model-option{display:flex;align-items:center;gap:10px;width:100%;padding:7px 9px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font-size:12.5px;text-align:left;cursor:pointer;}',
+      '.mw-model-option:hover{background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-model-option[data-selected="true"]{color:var(--dsw-alias-brand-primary);font-weight:600;}',
+      '.mw-model-option-check{flex:none;width:14px;font-size:12px;color:var(--dsw-alias-brand-primary);}',
+      '.mw-model-option-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.mw-model-option-provider{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary);font-weight:400;}',
+      '.mw-model-empty{margin:0;padding:8px 9px;font-size:12px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-ai-dialog-buttons{display:flex;align-items:center;gap:8px;margin-left:auto;}',
+      '.mw-ai-dialog-elapsed{margin-left:4px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-ai-dialog-result{margin:4px 0 10px;padding:10px 12px;border-radius:10px;background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-ai-dialog-result[data-state="error"]{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,transparent);}',
+      '.mw-ai-dialog-result-title{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-dialog-chosen{margin:0 0 4px;font-size:13px;line-height:19px;font-weight:500;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere;}',
+      '.mw-ai-dialog-chosen-meta{margin:0 0 6px;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-ai-dialog-reason{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere;}',
+      '.mw-ai-dialog-reason strong{font-weight:600;}',
+      '.mw-modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px 16px;border-top:0.5px solid var(--dsw-alias-border-l1);}',
     ].join('\n')
 
     /* ------------------------------------------------------------------ */
@@ -1676,10 +1942,368 @@ window.__ModuleLoader__.load({
       return { q: q, alt: altValue && altValue !== q ? altValue : '' }
     }
 
+    /** Modal that shows the AI pick progress and its recommendation. */
+    /** The AI resource-picker dialog: preferences, free mode and the result. */
+    /** Shared model dropdown used by the AI pick dialog and the settings table. */
+    function ModelPicker(props) {
+      const t = props.t
+      const catalog = props.catalog || null
+      const models = catalog && Array.isArray(catalog.models) ? catalog.models : []
+      const providers = catalog && Array.isArray(catalog.providers) ? catalog.providers : []
+      const nameOfModel = (provider, model) => {
+        const modelEntry = models.find(entry => entry && entry.provider === provider && entry.id === model)
+        return modelEntry ? modelEntry.name || modelEntry.id : model
+      }
+      const providerNameOf = provider => {
+        const providerEntry = providers.find(entry => entry && entry.id === provider)
+        return providerEntry ? providerEntry.name : provider
+      }
+      const selection = catalog && catalog.selection ? catalog.selection : null
+      const selected = props.value || (selection ? { provider: selection.provider, model: selection.model } : null)
+      const stacked = props.layout === 'stacked'
+      const emptyLabel = props.phase === 'loading' ? t('aiDialog.modelLoading') : t('aiDialog.modelEmpty')
+      const [open, setOpen] = useState(false)
+      const pickerRef = useRef(null)
+      useEffect(() => {
+        if (!open) return undefined
+        function onPointerDown(event) {
+          if (pickerRef.current && !pickerRef.current.contains(event.target)) setOpen(false)
+        }
+        function onKey(event) {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          event.stopPropagation()
+          setOpen(false)
+        }
+        document.addEventListener('pointerdown', onPointerDown, true)
+        document.addEventListener('keydown', onKey, true)
+        return () => {
+          document.removeEventListener('pointerdown', onPointerDown, true)
+          document.removeEventListener('keydown', onKey, true)
+        }
+      }, [open])
+      const triggerBody = stacked
+        ? h(
+          'span',
+          { className: 'mw-model-trigger-stack' },
+          h('span', { className: 'mw-model-trigger-name' }, selected ? nameOfModel(selected.provider, selected.model) : emptyLabel),
+          selected ? h('span', { className: 'mw-model-trigger-sub' }, providerNameOf(selected.provider)) : null,
+        )
+        : h(
+          'span',
+          { className: 'mw-model-trigger-label' },
+          selected ? [providerNameOf(selected.provider), nameOfModel(selected.provider, selected.model)].join(' · ') : emptyLabel,
+        )
+      return h(
+        'div',
+        { className: 'mw-model-picker', ref: pickerRef },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'mw-model-trigger',
+            'data-layout': stacked ? 'stacked' : 'inline',
+            disabled: models.length === 0,
+            'aria-haspopup': 'listbox',
+            'aria-expanded': open ? 'true' : 'false',
+            title: props.triggerTitle || '',
+            onClick: () => setOpen(value => !value),
+          },
+          triggerBody,
+          h('span', { className: 'mw-model-trigger-chevron' }, h(GlyphChevronDown, { size: 13 })),
+        ),
+        open
+          ? h(
+            'div',
+            {
+              className: 'mw-model-panel',
+              'data-placement': props.placement || 'up',
+              role: 'listbox',
+              'aria-label': props.ariaLabel || t('aiDialog.modelLabel'),
+            },
+            models.length === 0
+              ? h('p', { className: 'mw-model-empty' }, emptyLabel)
+              : models.map(model => {
+                const value = model.provider + '|' + model.id
+                const isSelected = Boolean(selected && selected.provider === model.provider && selected.model === model.id)
+                return h(
+                  'button',
+                  {
+                    key: value,
+                    type: 'button',
+                    role: 'option',
+                    'aria-selected': isSelected ? 'true' : 'false',
+                    className: 'mw-model-option',
+                    'data-selected': isSelected ? 'true' : 'false',
+                    onClick: () => {
+                      setOpen(false)
+                      props.onChoose(value)
+                    },
+                  },
+                  isSelected ? h('span', { className: 'mw-model-option-check', 'aria-hidden': 'true' }, '✓') : null,
+                  h('span', { className: 'mw-model-option-name' }, model.name || model.id),
+                  h('span', { className: 'mw-model-option-provider' }, providerNameOf(model.provider)),
+                )
+              }),
+          )
+          : null,
+      )
+    }
+
+    function AiPickDialog(props) {
+      const t = props.t
+      const pick = props.aiPick || null
+      const status = pick && pick.status ? pick.status : 'idle'
+      const chosen = pick && pick.pick ? props.rows.find(row => row && row.id === pick.pick.id) : null
+      const errorCode = pick && pick.code
+        ? pick.code
+        : pick && Array.isArray(pick.errors) && pick.errors[0]
+          ? pick.errors[0].code
+          : 'llm_error'
+      const errorText = errorCode === 'llm_unavailable'
+        ? t('aiDialog.unavailable')
+        : errorCode === 'llm_no_model'
+          ? t('aiDialog.noModel')
+          : errorCode === 'interrupted'
+            ? t('aiDialog.interrupted')
+            : errorCode === 'bad_prompt' || errorCode === 'bad_preferences'
+              ? t('torrent.aiFailed')
+              : t('torrent.aiFailed')
+      const modelPicker = h(
+        'div',
+        { className: 'mw-ai-dialog-model-picker' },
+        h('span', { className: 'mw-ai-dialog-model-label' }, t('aiDialog.modelLabel')),
+        h(ModelPicker, {
+          t,
+          catalog: props.models,
+          phase: props.modelsPhase,
+          value: props.model,
+          onChoose: props.onChooseModel,
+          placement: 'up',
+          layout: 'inline',
+          triggerTitle: t('aiDialog.modelHint'),
+          ariaLabel: t('aiDialog.modelLabel'),
+        }),
+      )
+      const prefs = props.prefs || AI_PICK_PREF_DEFAULTS
+      useEffect(() => {
+        function onKey(event) {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          event.stopPropagation()
+          props.onClose()
+        }
+        document.addEventListener('keydown', onKey, true)
+        return () => document.removeEventListener('keydown', onKey, true)
+      }, [props.onClose])
+      const prefRow = (dimension, label) => h(
+        'div',
+        { className: 'mw-ai-pref', key: dimension },
+        h('span', { className: 'mw-ai-pref-label' }, label),
+        h(
+          'span',
+          { className: 'mw-ai-pref-chips', role: 'group', 'aria-label': label },
+          AI_PICK_PREF_VALUES[dimension].map(value => h(
+            'button',
+            {
+              key: value,
+              type: 'button',
+              className: 'mw-ai-pref-chip',
+              'data-selected': prefs[dimension] === value ? 'true' : 'false',
+              'aria-pressed': prefs[dimension] === value ? 'true' : 'false',
+              onClick: () => props.onPreferenceChange(dimension, value),
+            },
+            t('aiDialog.' + dimension + '.' + value),
+          )),
+        ),
+      )
+      const chosenMeta = chosen
+        ? [
+          chosen.size,
+          typeof chosen.seeders === 'number' ? t('torrent.seeders', { count: chosen.seeders }) : '',
+        ].filter(Boolean).join(' · ')
+        : ''
+      const modeSwitch = h(
+        'div',
+        { className: 'mw-ai-mode', role: 'group', 'aria-label': t('aiDialog.title') },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'mw-ai-mode-btn',
+            'data-selected': props.free ? 'false' : 'true',
+            'aria-pressed': props.free ? 'false' : 'true',
+            onClick: () => props.onModeChange(false),
+          },
+          t('aiDialog.modeSimple'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'mw-ai-mode-btn',
+            'data-selected': props.free ? 'true' : 'false',
+            'aria-pressed': props.free ? 'true' : 'false',
+            onClick: () => props.onModeChange(true),
+          },
+          t('aiDialog.modeFree'),
+        ),
+      )
+      const prefSummary = [
+        t('aiDialog.quality.' + prefs.quality),
+        t('aiDialog.language.' + prefs.language),
+        t('aiDialog.subtitle.' + prefs.subtitle),
+      ].join(' · ')
+      const prefBlock = props.free
+        ? h('p', { className: 'mw-ai-pref-summary' }, t('aiDialog.prefSummary', { summary: prefSummary }))
+        : h(
+          'div',
+          { className: 'mw-ai-prefs' },
+          prefRow('quality', t('aiDialog.quality')),
+          prefRow('language', t('aiDialog.language')),
+          prefRow('subtitle', t('aiDialog.subtitle')),
+        )
+      let promptBlock = null
+      if (props.free) {
+        if (props.promptPhase === 'loading') {
+          promptBlock = h('p', { className: 'mw-ai-prompt-note' }, t('aiDialog.promptLoading'))
+        } else if (props.promptPhase === 'error') {
+          promptBlock = h(
+            'div',
+            { className: 'mw-ai-prompt' },
+            h('p', { className: 'mw-ai-prompt-note' }, t('aiDialog.promptFailed')),
+            h(
+              'button',
+              { type: 'button', className: 'mw-btn', onClick: props.onResetPrompt },
+              t('aiDialog.promptFailed'),
+            ),
+          )
+        } else {
+          promptBlock = h(
+            'div',
+            { className: 'mw-ai-prompt' },
+            h(
+              'div',
+              { className: 'mw-ai-prompt-head' },
+              h('span', { className: 'mw-ai-prompt-title' }, t('aiDialog.prompt')),
+              h(
+                'button',
+                { type: 'button', className: 'mw-btn', onClick: props.onResetPrompt },
+                t('aiDialog.resetPrompt'),
+              ),
+            ),
+            h('textarea', {
+              className: 'mw-ai-prompt-input',
+              value: props.promptDraft,
+              maxLength: 4000,
+              spellCheck: false,
+              placeholder: t('aiDialog.promptPlaceholder'),
+              onChange: event => props.onPromptChange(event.target.value),
+            }),
+            h('p', { className: 'mw-ai-prompt-note' }, t('aiDialog.promptPlaceholder')),
+          )
+        }
+      }
+      const resultBlock = status === 'done' && pick && pick.pick
+        ? h(
+          'div',
+          { className: 'mw-ai-dialog-result' },
+          h('h3', { className: 'mw-ai-dialog-result-title' }, t('aiDialog.result')),
+          h('p', { className: 'mw-ai-dialog-chosen' }, chosen ? chosen.title : pick.pick.id),
+          chosenMeta ? h('p', { className: 'mw-ai-dialog-chosen-meta' }, chosenMeta) : null,
+          pick.pick.reason
+            ? h(
+              'p',
+              { className: 'mw-ai-dialog-reason' },
+              h('strong', null, t('aiDialog.reason') + '：'),
+              pick.pick.reason,
+            )
+            : null,
+          props.free && pick.analysis
+            ? h('h3', { className: 'mw-ai-dialog-result-title' }, t('aiDialog.raw'))
+            : null,
+          props.free && pick.analysis ? h('pre', { className: 'mw-ai-raw' }, pick.analysis) : null,
+        )
+        : status === 'error'
+          ? h(
+            'div',
+            { className: 'mw-ai-dialog-result', 'data-state': 'error' },
+            h('p', { className: 'mw-ai-dialog-reason' }, errorText),
+          )
+          : null
+      return h(
+        'div',
+        {
+          className: 'mw-modal-overlay',
+          onMouseDown: event => {
+            if (event.target === event.currentTarget) props.onClose()
+          },
+        },
+        h(
+          'div',
+          {
+            className: 'mw-modal mw-ai-dialog',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-labelledby': 'mw-ai-dialog-title',
+            onMouseDown: event => event.stopPropagation(),
+          },
+          h(
+            'div',
+            { className: 'mw-modal-head' },
+            h('h2', { className: 'mw-modal-title', id: 'mw-ai-dialog-title' }, t('aiDialog.title')),
+            h(
+              'div',
+              { className: 'mw-modal-head-actions' },
+              modeSwitch,
+              h(
+                'button',
+                { type: 'button', className: 'mw-modal-close', onClick: props.onClose, 'aria-label': t('aiDialog.close') },
+                '×',
+              ),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'mw-modal-body' },
+            h('p', { className: 'mw-ai-dialog-item' }, props.item.title || ''),
+            props.free ? h('p', { className: 'mw-ai-free-hint' }, t('aiDialog.freeHint')) : null,
+            prefBlock,
+            promptBlock,
+            status === 'loading'
+              ? h(
+                'p',
+                { className: 'mw-ai-running' },
+                t('aiDialog.running'),
+                '· ' + t('aiDialog.elapsed', { seconds: props.elapsed }),
+              )
+              : null,
+            resultBlock,
+          ),
+          h(
+            'div',
+            { className: 'mw-modal-actions mw-ai-dialog-actions' },
+            modelPicker,
+            h(
+              'div',
+              { className: 'mw-ai-dialog-buttons' },
+              status === 'idle'
+                ? h('button', { type: 'button', className: 'mw-btn mw-btn-primary', onClick: props.onStart }, t('aiDialog.start'))
+                : status === 'done' || status === 'error'
+                  ? h('button', { type: 'button', className: 'mw-btn mw-btn-primary', onClick: props.onStart }, t('aiDialog.reevaluate'))
+                  : null,
+              h('button', { type: 'button', className: 'mw-btn', onClick: props.onClose }, t('aiDialog.close')),
+            ),
+          ),
+        ),
+      )
+    }
+
     /** "BT resources" block under one detail page; results are cached per title. */
     function TorrentSection(props) {
       const t = props.t
       const item = props.item
+      const lang = props.lang || 'zh-CN'
       const cacheKey = searchKey(item)
       const cached = session.torrents && session.torrents[cacheKey]
       const [view, setView] = useState(() => (
@@ -1693,6 +2317,30 @@ window.__ModuleLoader__.load({
       const copyTimerRef = useRef(null)
       const moreRef = useRef(null)
       const moreTimerRef = useRef(null)
+
+      /** AI pick state lives on the cached view so a remount keeps the answer. */
+      const aiPick = view.aiPick || null
+      const aiPicking = Boolean(aiPick && aiPick.status === 'loading')
+      const [aiDialogOpen, setAiDialogOpen] = useState(false)
+      const [aiElapsed, setAiElapsed] = useState(0)
+      const [aiModelPrefs, setAiModelPrefs] = useState(readAiModelPrefs)
+      const aiModels = props.aiModels || null
+      const aiModelsPhase = props.aiModelsPhase || 'idle'
+      const [aiPrefs, setAiPrefs] = useState(readAiPickPrefs)
+      const [aiFree, setAiFree] = useState(readAiFreeMode)
+      const [aiPromptPhase, setAiPromptPhase] = useState('idle')
+      const [aiPromptDraft, setAiPromptDraft] = useState('')
+      const aiPromptAbortRef = useRef(null)
+      const aiInFlightRef = useRef(false)
+      const aiStartedAtRef = useRef(0)
+
+      useEffect(() => {
+        if (!aiDialogOpen || !aiPicking) return undefined
+        const tick = () => setAiElapsed(Math.max(0, Math.round((Date.now() - aiStartedAtRef.current) / 1000)))
+        tick()
+        const timer = setInterval(tick, 1000)
+        return () => clearInterval(timer)
+      }, [aiDialogOpen, aiPicking])
 
       useEffect(() => () => {
         if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
@@ -1885,6 +2533,207 @@ window.__ModuleLoader__.load({
         }
         fallbackCopy()
       }
+      /**
+       * Ask the Host to choose the best row. The browser never sees a model
+       * credential: it sends the title plus the rows it is showing, and the
+       * Host streams one model call through the DSH LLM service.
+       */
+      /** Open the dialog; the evaluation itself only starts on demand. */
+      function openAiPick() {
+        if (view.status !== 'done' || sortedResults.length === 0) return
+        setAiDialogOpen(true)
+        setAiElapsed(0)
+        if (props.onLoadAiModels && aiModelsPhase !== 'done' && aiModelsPhase !== 'loading') props.onLoadAiModels()
+        if (aiFree && aiPromptPhase !== 'done') loadAiPrompt(aiPrefs)
+        if (aiPicking && !aiInFlightRef.current) {
+          // A persisted "loading" state without a live request (page switched
+          // away mid-call) can never finish on its own.
+          setView({
+            ...view,
+            aiPick: { status: 'error', pick: null, picks: [], analysis: '', errors: [], code: 'interrupted' },
+          })
+        }
+      }
+
+      /** The explicit "start / evaluate again" action of the dialog. */
+      function startAiPick() {
+        if (view.status !== 'done' || sortedResults.length === 0) return
+        setAiDialogOpen(true)
+        if (aiPicking) return
+        aiInFlightRef.current = true
+        aiStartedAtRef.current = Date.now()
+        setAiElapsed(0)
+        const rows = sortedResults.slice(0, 20).map(row => ({
+          id: row.id,
+          title: row.title,
+          size: row.size || '',
+          source: row.source || '',
+          seeders: row.seeders,
+          leechers: row.leechers,
+        }))
+        const loadingView = { ...view, aiPick: { status: 'loading' } }
+        setView(loadingView)
+        session.torrents = { ...(session.torrents || {}), [cacheKey]: loadingView }
+        callApi('/pick', {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify({
+            item: { source: item.source, id: item.id, title: item.title, kind: item.kind, year: item.year },
+            rows: rows,
+            lang: lang,
+            preferences: aiPrefs,
+            ...(aiFree && aiPromptDraft.trim() ? { prompt: aiPromptDraft.trim() } : {}),
+            ...(aiModelPrefs ? { model: aiModelPrefs } : {}),
+          }),
+        }).then(body => {
+          const pick = body && body.pick && typeof body.pick.id === 'string' ? body.pick : null
+          const errors = Array.isArray(body && body.errors) ? body.errors : []
+          const done = {
+            ...loadingView,
+            aiPick: {
+              status: pick ? 'done' : 'error',
+              pick: pick,
+              picks: Array.isArray(body && body.picks) ? body.picks : [],
+              analysis: body && body.analysis ? String(body.analysis).slice(0, 2000) : '',
+              provider: body && body.provider ? body.provider : null,
+              model: body && body.model ? body.model : null,
+              errors: errors,
+              code: errors.length > 0 ? errors[0].code : (pick ? null : 'llm_error'),
+              prompt: body && typeof body.prompt === 'string' ? body.prompt.slice(0, 4000) : '',
+              preferences: aiPrefs,
+              free: Boolean(aiFree),
+            },
+          }
+          session.torrents = { ...(session.torrents || {}), [cacheKey]: done }
+          setView(done)
+        }).catch(error => {
+          const failed = {
+            ...loadingView,
+            aiPick: {
+              status: 'error',
+              pick: null,
+              picks: [],
+              analysis: '',
+              errors: [],
+              code: error && error.code ? error.code : 'network',
+            },
+          }
+          session.torrents = { ...(session.torrents || {}), [cacheKey]: failed }
+          setView(failed)
+        }).finally(() => {
+          aiInFlightRef.current = false
+        })
+      }
+
+      /** Mirror the settings model choice, so the next request uses it. */
+      function chooseDialogModel(value) {
+        if (props.onChooseAiModel) props.onChooseAiModel(value)
+        setAiModelPrefs(readAiModelPrefs())
+      }
+
+      function retryAiPick() {
+        setAiDialogOpen(true)
+        startAiPick()
+      }
+
+      /** The same row subset that startAiPick sends to the Host. */
+      function pickRowsPayload() {
+        return sortedResults.slice(0, 20).map(row => ({
+          id: row.id,
+          title: row.title,
+          size: row.size || '',
+          source: row.source || '',
+          seeders: row.seeders,
+          leechers: row.leechers,
+        }))
+      }
+
+      /** Ask the Host for the default prompt text (free mode editor). */
+      function loadAiPrompt(prefs) {
+        if (aiPromptAbortRef.current) aiPromptAbortRef.current.abort()
+        const controller = new AbortController()
+        aiPromptAbortRef.current = controller
+        setAiPromptPhase('loading')
+        callApi('/pick', {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            item: { source: item.source, id: item.id, title: item.title, kind: item.kind, year: item.year },
+            rows: pickRowsPayload(),
+            lang: lang,
+            preview: true,
+            preferences: prefs || aiPrefs,
+          }),
+        }).then(body => {
+          if (controller.signal.aborted) return
+          setAiPromptDraft(body && typeof body.prompt === 'string' ? body.prompt : '')
+          setAiPromptPhase('done')
+        }).catch(() => {
+          if (controller.signal.aborted) return
+          setAiPromptPhase('error')
+        })
+      }
+
+      function updateAiPref(dimension, value) {
+        const next = { ...aiPrefs, [dimension]: value }
+        setAiPrefs(next)
+        writeAiPickPrefs(next)
+        if (aiFree) loadAiPrompt(next)
+      }
+
+      function setAiFreeMode(next) {
+        if (Boolean(next) === aiFree) return
+        setAiFree(next)
+        writeAiFreeMode(next)
+        if (next && aiPromptPhase !== 'done') loadAiPrompt(aiPrefs)
+      }
+
+      /** One banner explains the AI result above the list. */
+      let aiBanner = null
+      if (view.status === 'done' && sortedResults.length > 0 && aiPick) {
+        if (aiPick.status === 'loading') {
+          aiBanner = h(
+            'p',
+            { className: 'mw-ai-pick', 'data-state': 'loading', role: 'status' },
+            h('span', { className: 'mw-ai-pick-dot', 'aria-hidden': 'true' }),
+            t('torrent.aiPicking'),
+          )
+        } else if (aiPick.status === 'error') {
+          const code = aiPick.code || (Array.isArray(aiPick.errors) && aiPick.errors[0] && aiPick.errors[0].code) || 'llm_error'
+          const message = code === 'llm_unavailable'
+            ? t('torrent.aiUnavailable')
+            : code === 'llm_no_model'
+              ? t('torrent.aiNoModel')
+              : t('torrent.aiFailed')
+          aiBanner = h(
+            'div',
+            { className: 'mw-ai-pick', 'data-state': 'error' },
+            h(GlyphWarning, null),
+            h('span', { className: 'mw-ai-pick-text' }, message),
+            h('button', { type: 'button', className: 'mw-link-btn mw-more', onClick: retryAiPick }, t('torrent.retry')),
+          )
+        } else if (aiPick.pick) {
+          const chosen = sortedResults.find(row => row && row.id === aiPick.pick.id)
+          aiBanner = h(
+            'div',
+            { className: 'mw-ai-pick', 'data-state': 'done' },
+            h(GlyphSparkle, null),
+            h(
+              'span',
+              { className: 'mw-ai-pick-text' },
+              h('strong', null, t('torrent.aiRecommend') + '：'),
+              chosen ? chosen.title : aiPick.pick.id,
+              aiPick.pick.reason
+                ? h('span', { className: 'mw-ai-pick-reason' }, ' — ' + aiPick.pick.reason)
+                : null,
+            ),
+          )
+        } else {
+          aiBanner = h('div', { className: 'mw-ai-pick', 'data-state': 'empty' }, t('torrent.aiNoPick'))
+        }
+      }
+
       const fallbackQuery = alt || primaryQuery || item.title || ''
 
       /* Paged loading footer: sentinel + button while more pages exist, a
@@ -1968,23 +2817,30 @@ window.__ModuleLoader__.load({
         body = h(
           'div',
           null,
+          aiBanner,
           h(
           'div',
           { className: 'mw-torrent-list', role: 'list' },
           sortedResults.map((row, index) => {
             const rowKey = (row.source || 'source') + '-' + (row.id || index)
             const feedback = copyState && copyState.key === rowKey ? copyState : null
+            const isAiPick = Boolean(aiPick && aiPick.pick && aiPick.pick.id === row.id)
             return h(
             'div',
             {
-              className: 'mw-torrent-row',
+              className: 'mw-torrent-row' + (isAiPick ? ' mw-torrent-row-pick' : ''),
               role: 'listitem',
               key: rowKey,
             },
             h(
               'div',
               { className: 'mw-torrent-main' },
-              h('p', { className: 'mw-torrent-title', title: row.title }, row.title),
+              h(
+                'p',
+                { className: 'mw-torrent-title', title: row.title },
+                row.title,
+                isAiPick ? h('span', { className: 'mw-torrent-ai-badge' }, t('torrent.aiRecommend')) : null,
+              ),
               h(
                 'p',
                 { className: 'mw-torrent-meta' },
@@ -2039,6 +2895,21 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'mw-torrents-tools' },
+            view.status === 'done' && sortedResults.length > 0
+              ? h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'mw-btn mw-ai-pick-btn',
+                  'data-picking': aiPicking ? 'true' : 'false',
+                  disabled: aiPicking,
+                  onClick: openAiPick,
+                  title: t('torrent.aiPick'),
+                },
+                h(GlyphSparkle, null),
+                t('torrent.aiPick'),
+              )
+              : null,
             view.status === 'done' && sortedResults.length > 1
               ? h(
                 'div',
@@ -2078,6 +2949,29 @@ window.__ModuleLoader__.load({
           ),
         ),
         body,
+        aiDialogOpen
+          ? h(AiPickDialog, {
+            t: t,
+            item: item,
+            rows: sortedResults,
+            aiPick: aiPick,
+            model: aiModelPrefs,
+            models: aiModels,
+            modelsPhase: aiModelsPhase,
+            elapsed: aiElapsed,
+            prefs: aiPrefs,
+            free: aiFree,
+            promptDraft: aiPromptDraft,
+            promptPhase: aiPromptPhase,
+            onPreferenceChange: updateAiPref,
+            onChooseModel: chooseDialogModel,
+            onModeChange: setAiFreeMode,
+            onPromptChange: setAiPromptDraft,
+            onResetPrompt: () => loadAiPrompt(aiPrefs),
+            onStart: startAiPick,
+            onClose: () => setAiDialogOpen(false),
+          })
+          : null,
       )
     }
 
@@ -2573,7 +3467,16 @@ window.__ModuleLoader__.load({
             ? h('aside', { className: 'mw-detail-side' }, relatedSections)
             : null,
         ),
-        h(TorrentSection, { t: t, item: item }),
+        h(TorrentSection, {
+          t: t,
+          item: item,
+          lang: props.lang,
+          aiModel: props.aiModel,
+          aiModels: props.aiModels,
+          aiModelsPhase: props.aiModelsPhase,
+          onChooseAiModel: props.onChooseAiModel,
+          onLoadAiModels: props.onLoadAiModels,
+        }),
       )
     }
 
@@ -2655,6 +3558,55 @@ window.__ModuleLoader__.load({
             ),
           )),
         ),
+        h('div', { className: 'mw-settings-divider', 'aria-hidden': 'true' }),
+        h('h2', { className: 'mw-key-title mw-settings-subtitle' }, t('settings.defaultModel')),
+        (() => {
+          const catalog = props.aiModels || null
+          const models = catalog && Array.isArray(catalog.models) ? catalog.models : []
+          if (props.aiModelsPhase === 'loading') {
+            return h('p', { className: 'mw-setting-note' }, t('settings.aiModelLoading'))
+          }
+          if (props.aiModelsPhase === 'error') {
+            return h(
+              'div',
+              { className: 'mw-setting-table-note' },
+              h('span', {}, t('settings.aiModelFailed')),
+              h('button', { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onReloadAiModels }, t('settings.aiModelRetry')),
+            )
+          }
+          if (models.length === 0) {
+            return h('p', { className: 'mw-setting-note' }, t('settings.aiModelEmpty'))
+          }
+          return h(
+            'div',
+            { className: 'mw-setting-table', role: 'table', 'aria-label': t('settings.defaultModel') },
+            h(
+              'div',
+              { className: 'mw-setting-table-head', role: 'row' },
+              h('span', { role: 'columnheader' }, t('settings.usage')),
+              h('span', { role: 'columnheader' }, t('settings.modelColumn')),
+            ),
+            h(
+              'div',
+              { className: 'mw-setting-table-row', role: 'row' },
+              h('span', { className: 'mw-setting-table-label', role: 'cell' }, t('settings.aiPickUsage')),
+              h(
+                'div',
+                { className: 'mw-setting-table-model', role: 'cell' },
+                h(ModelPicker, {
+                  t,
+                  catalog,
+                  phase: props.aiModelsPhase,
+                  value: props.aiModel,
+                  onChoose: props.onChooseAiModel,
+                  placement: 'down',
+                  layout: 'stacked',
+                  ariaLabel: t('settings.aiPickUsage'),
+                }),
+              ),
+            ),
+          )
+        })(),
       )
     }
 
@@ -2688,6 +3640,9 @@ window.__ModuleLoader__.load({
       const [source, setSource] = useState(session.source)
       const [sources, setSources] = useState(session.sources || { tmdb: true, imdb: true, douban: true })
       const [settingsOpen, setSettingsOpen] = useState(false)
+      const [aiModel, setAiModel] = useState(readAiModelPrefs)
+      const [aiModels, setAiModels] = useState(null)
+      const [aiModelsPhase, setAiModelsPhase] = useState('idle')
       const [recommendationLimit, setRecommendationLimit] = useState(12)
       const [draft, setDraft] = useState(session.draft)
       const [data, setData] = useState(session.data)
@@ -2715,6 +3670,7 @@ window.__ModuleLoader__.load({
       const keyTriggerRef = useRef(null)
       const settingsTriggerRef = useRef(null)
       const settingsPanelRef = useRef(null)
+      const aiModelsAbortRef = useRef(null)
       const abortRef = useRef(null)
       const suggestionsAbortRef = useRef(null)
       const channelAbortRef = useRef(null)
@@ -2888,6 +3844,45 @@ window.__ModuleLoader__.load({
         return () => {
           document.removeEventListener('pointerdown', onPointerDown)
           document.removeEventListener('keydown', onKeyDown)
+        }
+      }, [settingsOpen])
+
+      function loadAiModels() {
+        if (aiModelsAbortRef.current) aiModelsAbortRef.current.abort()
+        const controller = new AbortController()
+        aiModelsAbortRef.current = controller
+        setAiModelsPhase('loading')
+        callApi('/models', { signal: controller.signal })
+          .then(body => {
+            setAiModels(body)
+            setAiModelsPhase('done')
+          })
+          .catch(() => {
+            if (controller.signal.aborted) return
+            setAiModelsPhase('error')
+          })
+      }
+
+      function chooseAiModel(value) {
+        if (!value) {
+          setAiModel(null)
+          writeStorage(AI_MODEL_STORAGE, null)
+          return
+        }
+        const separator = value.indexOf('|')
+        if (separator === -1) return
+        const next = { provider: value.slice(0, separator), model: value.slice(separator + 1) }
+        if (!next.provider || !next.model) return
+        setAiModel(next)
+        writeStorage(AI_MODEL_STORAGE, next)
+      }
+
+      useEffect(() => {
+        if (!settingsOpen) return undefined
+        if (aiModelsPhase === 'done' || aiModelsPhase === 'loading') return undefined
+        loadAiModels()
+        return () => {
+          if (aiModelsAbortRef.current) aiModelsAbortRef.current.abort()
         }
       }, [settingsOpen])
 
@@ -3842,6 +4837,11 @@ window.__ModuleLoader__.load({
               panelRef: settingsPanelRef,
               sources: sources,
               onToggle: toggleSource,
+              aiModel: aiModel,
+              aiModels: aiModels,
+              aiModelsPhase: aiModelsPhase,
+              onChooseAiModel: chooseAiModel,
+              onReloadAiModels: loadAiModels,
             })
             : null,
         ),
@@ -4015,6 +5015,12 @@ window.__ModuleLoader__.load({
               onOpenCollection: openCollection,
               onOpenSeries: openSeries,
               onOpenRanking: openRanking,
+              lang: languageForSearch(getLocale()),
+              aiModel: aiModel,
+              aiModels: aiModels,
+              aiModelsPhase: aiModelsPhase,
+              onChooseAiModel: chooseAiModel,
+              onLoadAiModels: loadAiModels,
             })
             : chartView
               ? h(ChartPage, {
