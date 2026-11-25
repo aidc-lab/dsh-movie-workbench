@@ -1,8 +1,8 @@
 # dsh-movie-workbench — Host ⇄ Client data contract (v1)
 
 Authoritative contract between the Host half (`index.js` + `lib/`) and the browser half
-(`client.js`) of this DSH bundle. Both halves are plain ESM / plain JavaScript, no
-dependencies, no build step.
+(`client.js`) of this DSH bundle. Both halves are plain JavaScript, no dependencies,
+no build step.
 
 Bundle directory: `/Users/4paradigm/Documents/idsh/dsh-movie-workbench`
 Package name: `dsh-movie-workbench`
@@ -19,7 +19,11 @@ export function apply(ctx, config) { /* registers ONE prefix route */ }
 
 Route base: `/movie-workbench/api` (single `kind: 'prefix'` registration on
 `ctx.webServer.register`, disposed through `ctx.effect`). The handler receives
-Node `IncomingMessage` / `ServerResponse`. Supported routes:
+Node `IncomingMessage` / `ServerResponse`.
+
+Every request is admitted by the profile's DSH `connection` service before the
+data layer runs (v1.19); unauthenticated and cross-origin requests are refused.
+The routes are same-origin only and send no CORS grant. Supported routes:
 
 ### `GET /movie-workbench/api/status`
 
@@ -99,7 +103,8 @@ Error envelope for bad requests (HTTP 400) and unexpected failures (HTTP 500):
 
 Stable `code` values the client localizes:
 `empty_query`, `bad_source`, `empty_id`, `bad_id`, `tmdb_key_missing`,
-`tmdb_unauthorized`, `upstream_error`, `timeout`, `internal_error`.
+`tmdb_unauthorized`, `upstream_error`, `timeout`, `unauthorized`, `forbidden`,
+`access_unavailable`, `internal_error`.
 
 ### `GET /movie-workbench/api/image?url=<encoded absolute https URL>`
 
@@ -113,13 +118,14 @@ unless the request carries a Douban `Referer`, which a browser `<img>` cannot se
 - Send `user-agent` and, for Douban hosts, `referer: https://movie.douban.com/`.
 - Response must be `content-type: image/*`; otherwise `502`. Cap the body at 8 MiB.
 - Success headers: the image content type, `cache-control: public, max-age=86400`,
-  `access-control-allow-origin: *`, `x-content-type-options: nosniff`.
+  `x-content-type-options: nosniff` (no CORS grant; see v1.19).
 - Upstream failure → `502 { ok:false, code:'upstream_error' }`-style plain JSON body
   is fine; the client's `<img onerror>` handles it.
 
-All JSON/other responses also carry `access-control-allow-origin: *`. Answer
-`OPTIONS` with `204` + `access-control-allow-headers: x-mw-tmdb-key` so the routes
-also work if the page is loaded from a non-http origin later.
+**Superseded by v1.19 (DSH admission):** earlier builds also sent
+`access-control-allow-origin: *` on every response and answered `OPTIONS` with
+`204` + CORS headers. Current builds send no CORS headers and do not answer
+`OPTIONS`; unauthenticated requests are refused before routing.
 
 ## Providers
 
@@ -902,7 +908,7 @@ Request:
 - `rows` is required, at most 30 entries; empty → `400 empty_rows`, too many →
   `400 too_many_rows`; rows without a string `id`/`title` are dropped and an
   empty result → `400 invalid_rows`.
-- Only `POST` is accepted (`GET /pick` → `405` with `Allow: POST, OPTIONS`).
+- Only `POST` is accepted (`GET /pick` → `405` with `Allow: POST`).
 
 Success envelope (`200`):
 
@@ -1011,3 +1017,29 @@ the model's raw output. When a stored run is still marked `loading` but its
 request died (page switched away mid-call), the dialog reports an interrupted
 run instead of hanging. The stored model override is sent in the `/pick` body
 when present.
+
+## v1.19 — DSH browser admission
+
+`index.js` no longer forwards every request straight to `createHandler`. It
+checks each request through the profile's DSH `connection` service
+(`connection.admit(req)`) and only invokes the data layer when admission
+returns a live Peer.
+
+- Admission covers every method and endpoint under `/movie-workbench/api`,
+  including `/image` requests issued by the page's `<img>` elements.
+- `401 unauthorized`: the Host is trusted but the request carries no
+  authenticated DSH browser or API credential.
+- `403 forbidden`: the Host/Origin fence refused the request (cross-site
+  marker, opaque Origin, or an untrusted Host).
+- `503 access_unavailable`: the profile mounted no `connection` service, or
+  `admit()` failed / returned no decision. The route fails closed instead of
+  serving data.
+- Responses carry no `access-control-*` headers. `OPTIONS` is a normal `405`
+  with `Allow: GET, HEAD` (or `Allow: POST` for `/pick`); same-origin fetches
+  and `<img>` requests carry the host-only `SameSite=Strict` browser cookie, so
+  no preflight is needed.
+- `createHandler` remains the transport-free data layer. `scripts/dev-server.mjs`
+  and `tests/pick-smoke.mjs` call it directly and therefore bypass admission;
+  production admission lives in the `index.js` route registration.
+- `tests/access-smoke.mjs` covers the 401/403/503 paths, the route wiring and
+  the absence of a CORS grant.

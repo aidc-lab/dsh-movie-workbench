@@ -24,7 +24,7 @@
  *   /image?url=<Douban poster from the Douban search>   (expects 200 image/*)
  *   /image?url=<disallowed host>              (expects 400)
  *
- * plus the deterministic contract error envelopes and CORS behaviour. The
+ * plus the deterministic contract error envelopes and same-origin header policy. The
  * summary prints PASS/FAIL for every required check and exits non-zero when
  * one fails. Extra live probes (`INFO`) exercise the timeout / unauthorized /
  * upstream-error code paths without making the acceptance run network-flaky.
@@ -1265,11 +1265,11 @@ async function main() {
         `HTTP ${image.status}, ${imageType}, ${imageBytes.length} bytes`,
       )
       check(
-        'image proxy sends cache + CORS + nosniff headers',
+        'image proxy sends cache + nosniff headers and no CORS grant',
         (image.headers.get('cache-control') || '').includes('max-age=86400') &&
-          image.headers.get('access-control-allow-origin') === '*' &&
+          image.headers.get('access-control-allow-origin') === null &&
           image.headers.get('x-content-type-options') === 'nosniff',
-        `cache-control=${image.headers.get('cache-control')}`,
+        `cache-control=${image.headers.get('cache-control')}, acao=${image.headers.get('access-control-allow-origin')}`,
       )
       check(
         'image proxy body is a non-empty image within the 8 MiB cap',
@@ -1569,13 +1569,13 @@ async function main() {
 
     const options = await fetch(`${api}/status`, { method: 'OPTIONS' })
     check(
-      'OPTIONS -> 204 with CORS + x-mw-tmdb-key allow header',
-      options.status === 204 &&
-        options.headers.get('access-control-allow-origin') === '*' &&
-        String(options.headers.get('access-control-allow-headers') || '').includes(
-          'x-mw-tmdb-key',
-        ),
-      `HTTP ${options.status}, allow-headers=${options.headers.get('access-control-allow-headers')}`,
+      'OPTIONS -> 405 with GET/HEAD Allow and no CORS preflight',
+      options.status === 405 &&
+        String(options.headers.get('allow') || '').includes('GET') &&
+        String(options.headers.get('allow') || '').includes('HEAD') &&
+        options.headers.get('access-control-allow-origin') === null &&
+        options.headers.get('access-control-allow-headers') === null,
+      `HTTP ${options.status}, allow=${options.headers.get('allow')}, acao=${options.headers.get('access-control-allow-origin')}`,
     )
 
     /* ---------------- extra live/defensive probes (informational) ---------------- */

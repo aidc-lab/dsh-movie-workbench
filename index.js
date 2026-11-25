@@ -1,4 +1,4 @@
-import { createHandler } from './lib/host.js'
+import { createAdmission, createHandler } from './lib/host.js'
 
 /** Host services this plugin needs: the named-route HTTP carrier. */
 export const inject = ['webServer']
@@ -44,11 +44,13 @@ export function apply(ctx, config) {
       }
     },
   })
+  const admitRequest = createAdmission(() => readService(ctx, 'connection'))
   ctx.effect(() => {
     const dispose = ctx.webServer.register({
       kind: 'prefix',
       path: '/movie-workbench/api',
       handler: (req, res) => {
+        if (!admitRequest(req, res)) return
         void handler(req, res)
       },
     })
