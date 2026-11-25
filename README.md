@@ -1,4 +1,4 @@
-**English** | [简体中文](README.zh.md)
+**English** | [中文](README.zh.md)
 
 # dsh-movie-workbench
 
@@ -9,43 +9,13 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 
 ## Features
 
-- **Film & TV search** — results grouped by channel, with posters, years, ratings and source links.
-- **Trending** — each channel's popular movies and TV series on the home page; the row length follows the panel width so every channel fills exactly two rows, and it re-requests on resize. DouBan rows come from the mobile recommendation feed, so each card shows its release year next to the type.
-- **Channel browse** — open any channel for its own page with category tabs (TMDB: This week /
-  Movies / TV; IMDb: Featured / Movies / TV; DouBan: Popular / Movies / TV / Movie charts /
-  TV charts) and infinite scroll for the next pages.
-- **DouBan charts (榜单)** — DouBan's channel page has two separate chart tabs, 电影榜单 and
-  剧集榜单, with collapsible sections. Movie lists group 官方榜单, 年度榜单 (2025–2021,
-  high-score and recent-hit variants), 高分经典 and 近期热门 for 27 genres, and 冷门佳作 for
-  each genre; TV lists group 官方榜单, 年度榜单 and 高分经典 / 近期热门 for the same genres.
-  Generated charts use their first title's poster as the card cover. Open a chart to see the
-  ranked titles with the same paged infinite scroll.
-- **Related sections on the detail page** — TMDB collections, IMDb related titles and
-  DouBan charts sit in a right-hand rail on the title page as the same compact card:
-  a cover, a name and a small meta line. A TMDB collection opens the collection page;
-  an IMDb 相关系列 card opens the related-series page in release order; each DouBan
-  收录于榜单 card opens that chart's ranked titles directly. The middle column and the
-  synopsis use the full remaining width, and the rail stacks below the title on narrow
-  panels.
-- **Detail metadata** — the title page shows country/region, genres and runtime as small
-  tags under the rating row: DouBan details come from the subject API, TMDB details from
-  the movie endpoint, and IMDb details from its browser GraphQL endpoint. A DouBan title
-  opened from a recommendation row (which carries no year) fills its release year from
-  the same detail request.
-- **BT resources** — search BT resources, sortable by size, seeders or downloads, with paged
-  loading (scroll or 加载更多 for the next page); copy the magnet link or open the source page.
-- **AI resource pick** — click AI 选资源 above the BT list to open the dialog; evaluation only
-  starts when you press 开始评估. Pick a preference profile first: quality (best / balanced /
-  small size), language and subtitles, and the prompt will honour it when ranking. Switch to
-  自由模式 at the top right of the dialog to see and edit the exact prompt sent to the model
-  (the simple-mode choices are already mapped into it) and to inspect the model's raw output;
-  the required JSON answer format stays in the system prompt and is not editable. The dialog
-  footer shows the model in use and lets you switch it right there (defaults to the model set
-  in settings). The Host asks the model configured for this DSH profile (through the DSH LLM
-  service) to compare seeders, size, release quality and index reliability; a different model
-  can be chosen in the settings popover. The picked row is highlighted with an AI 推荐 badge
-  and the reason sits in a banner above the list. The answer is cached for the current title,
-  so reopening the dialog shows the previous result (and offers 重新评估).
+- **Multi-source search** — search TMDB, IMDb and Douban together, grouped by source.
+- **Trending and channel browse** — home rows plus per-source pages with category tabs and infinite scroll.
+- **Douban charts** — official, annual and genre charts for movies and TV, plus movie hidden-gem charts.
+- **Detail pages** — synopsis, metadata, related titles and chart placements.
+- **BT resources** — search, sort, copy magnet links and open source pages.
+- **AI resource pick** — rank BT rows with the profile's model, optional preferences and an editable prompt.
+- **Settings** — manage data sources, the TMDB API key and the default model in one dialog.
 
 ## Installation
 
@@ -70,16 +40,24 @@ dsh plugin --profile desktop add dsh-movie-workbench
 A Git URL also works:
 `dsh plugin --profile desktop add git+https://github.com/aidc-lab/dsh-movie-workbench.git`.
 
-## Data-source settings
+## Settings dialog
 
-The gear button next to the TMDB Key button in the page header opens the settings popover. The
-data-source switches are stored in `localStorage` (`dsh-movie-workbench.sources`); at least one
-channel must stay enabled, and when only one is left the filter row collapses to that channel.
+The gear button in the page header opens the settings dialog, which keeps every browser-side
+preference in one place:
 
-The same popover lists the models advertised by the profile's LLM providers (from the Host's
-`GET /models`) and lets you pick the one used by AI 选资源; the choice lives in
-`localStorage` (`dsh-movie-workbench.ai-model`), and 「跟随默认」 keeps following the profile
-model. Models are only available when the DSH LLM service and a model are configured.
+- **Data sources** — switches for TMDB, IMDb and Douban, stored in `localStorage`
+  (`dsh-movie-workbench.sources`). At least one channel must stay enabled, and when only one is
+  left the filter row collapses to that channel.
+- **TMDB API Key** — a v3 key or a v4 read token, kept in this browser only
+  (`dsh-movie-workbench.tmdb-key`). When the Host already has a key configured the field can
+  stay empty.
+- **Default model** — the models advertised by the profile's LLM providers (from the Host's
+  `GET /models`), used by AI resource pick; the choice lives in `localStorage`
+  (`dsh-movie-workbench.ai-model`). Models are only available when the DSH LLM service and a
+  model are configured.
+
+Nothing is applied until you press Save; closing the dialog with ×, Escape or a click
+outside discards the edits.
 
 ## Host API
 
@@ -91,19 +69,20 @@ The Host side (`index.js` + `lib/`) exposes a single prefix route, `/movie-workb
 | `GET /search?q=&source=&lang=` | dispatch to the selected channels and return normalized results |
 | `GET /trending?source=&lang=&limit=` | recommendation rows, or a longer list for one channel |
 | `GET /browse?source=&category=&page=&cursor=&lang=` | one page (20 items) of a channel browse category; returns `hasMore` and, for IMDb, an opaque `next` cursor for infinite scroll |
-| `GET /charts?source=douban&kind=movie\|tv` | one chart catalog: `movie` (default) has 3 official charts with live metadata, 10 annual charts (高分/热门 for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (94 total); `tv` has 3 official, 10 annual and 54 genre charts (67 total, no hidden gems) |
+| `GET /charts?source=douban&kind=movie\|tv` | one chart catalog: `movie` (default) has 3 official charts with live metadata, 10 annual charts (high-score / recent-hit variants for 2025–2021), 27 hidden-gem charts (one per genre) and 54 genre charts (94 total); `tv` has 3 official, 10 annual and 54 genre charts (67 total, no hidden gems) |
 | `GET /chart?source=douban&id=&start=&count=` | one page of a chart's ranked titles; `id` is an official id, `year:<yyyy>:<S or U>`, `hidden:<genre>`, `genre:<genre>:<S or U>`, or the TV forms `tv-year:<yyyy>:<S or U>` / `tv-genre:<genre>:<S or U>` (S = high-score, U = recent hits) |
-| `GET /detail?source=douban\|tmdb\|imdb&id=` | synopsis and metadata (country/region, genres, runtime) for a DouBan title, the collection reference of a TMDB movie, or an IMDb title's metadata |
+| `GET /detail?source=douban\|tmdb\|imdb&id=` | synopsis and metadata (country/region, genres, runtime) for a Douban title, the collection reference of a TMDB movie, or an IMDb title's metadata |
 | `GET /collection?source=tmdb&id=` | every part of a TMDB collection, as normalized movie results |
 | `GET /series?source=imdb&id=` | the IMDb connection chain of one title (follows / followed by / spin-off), ordered by release year |
-| `GET /chart?source=douban&id=collection:<id>` | one of the official charts a DouBan title is listed in, with the same ranked envelope as other charts |
+| `GET /chart?source=douban&id=collection:<id>` | one of the official charts a Douban title is listed in, with the same ranked envelope as other charts |
 | `GET /torrents?q=&alt=&source=&limit=&page=` | BT resource search; one page of results (`page` 1–20) plus `hasMore` for scroll loading |
 | `GET /models` | models advertised by the profile's LLM providers, plus the current profile selection |
 | `POST /pick` | ask the Host's AI model to choose the best of up to 30 BT rows; body `{ item, rows, lang, preferences?, prompt?, preview?, model? }` (`preferences` = `{ quality, language, subtitle }`, `prompt` overrides the generated prompt, `preview: true` returns the prompt without calling a model), returns `pick` (`{id, rank, reason}`), `picks`, `prompt`, `preferences` and `errors` (`llm_unavailable` / `llm_no_model` / `bad_preferences` / `bad_prompt` / timeout) |
 | `GET /image?url=` | proxy posters from allowlisted image hosts |
 
-All upstream HTTP requests happen in the Host, so the page stays same-origin and DouBan's `Referer`
-requirement is handled server-side.
+All upstream HTTP requests happen in the Host, so the page stays same-origin and Douban's `Referer`
+requirement is handled server-side. Every route is admitted by the authenticated DSH browser
+session; responses are same-origin only and carry no CORS grant.
 
 ## Configuration
 
@@ -115,21 +94,25 @@ Plugin configuration in `cordis.patch.yml`:
 | `maxResults` | `12` | result cap per channel |
 | `requestTimeoutMs` | `8000` | timeout for a single upstream request |
 
-TMDB needs a credential: set `tmdbApiKey`, or paste a v3 key / v4 token into the Key control in the
-panel (stored only in the local browser). IMDb and DouBan need no key.
+TMDB needs a credential: set `tmdbApiKey`, or paste a v3 key / v4 token into the settings
+dialog in the panel (stored only in the local browser). IMDb and Douban need no key.
+
+## Development
+
+The browser half stays in a single `client.js` because the DSH client loader expects one
+classic-script registration; edit it directly, with no build step. The Host is split into
+focused ES modules under `lib/host/` behind `lib/host.js`; upstream adapters live under
+`lib/providers/` behind `lib/providers.js`.
+
+| Command | Purpose |
+|---|---|
+| `make check` | `node --check` on every source file |
+| `make smoke` | the offline client/render/pick test suite |
+| `make live` | live upstream harness against TMDB, IMDb, Douban and the BT indexes |
+| `make publish` | publish the package to npm (prompts for a 2FA code) |
 
 ## Notes
 
-- Requires the DSH Web GUI (it provides `ctx.webServer`) and access to `api.themoviedb.org`,
-  `v2.sg.media-imdb.com`, `api.graphql.imdb.com`, `movie.douban.com`, `bt4gprx.com`,
-  `bitsearch.to` and the poster image hosts.
-- IMDb search results carry no rating; DouBan recommendations include the public `rate`; TMDB
-  provides ratings and vote counts.
-- IMDb related titles come from IMDb's browser GraphQL `connections` field (up to 1,250
-  relations per title); DouBan ranking chips come from `subject_collections` in the
-  subject payload.
-- Channel browse pages return 20 items per page and stop at page 100. IMDb browse pages are
-  cursor paged through IMDb's browser GraphQL popularity index, so scrolling keeps loading new
-  titles; the home Trending row still uses a curated seed list, which is why it is limited.
-- suggestion, rexxar, BT4G and BitSearch are undocumented endpoints and may change or rate-limit;
-  failures are surfaced per channel and do not affect the others.
+- Requires the DSH Web GUI and network access to TMDB, IMDb, Douban, BT4G, BitSearch and the poster hosts.
+- IMDb search results have no rating; Douban recommendations include the public `rate`; TMDB returns ratings and votes.
+- Some upstream endpoints are undocumented and may change or rate-limit; failures are isolated per channel.

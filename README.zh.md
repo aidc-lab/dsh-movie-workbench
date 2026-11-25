@@ -9,31 +9,13 @@ DSH **影视工作台**：在一个页面里检索 **TMDB**、**IMDb** 和 **豆
 
 ## 功能
 
-- **影视搜索** — 结果按渠道分组，含海报、年份、评分与来源链接。
-- **热门推荐** — 首页展示各渠道热门推荐影视；每行数量随面板宽度自适应，正好铺满两行，窗口尺寸变化时自动重新请求。豆瓣推荐数据来自移动端推荐接口，卡片与其它渠道一样显示年份。
-- **渠道浏览** — 点进渠道进入独立页面，按分类标签切换（TMDB：本周趋势 / 电影 / 剧集；
-  IMDb：精选作品 / 电影 / 剧集；豆瓣：热门推荐 / 电影 / 剧集 / 电影榜单 / 剧集榜单），下滑自动加载下一页。
-- **豆瓣榜单** — 豆瓣渠道页有「电影榜单」和「剧集榜单」两个标签，分组均可折叠。电影榜单包含
-  官方榜单、年度榜单（2025–2021，含高分/热门两档）、高分经典（27 个类型）、近期热门（27 个类型）和
-  冷门佳作（27 个类型）；剧集榜单包含官方榜单、年度榜单和高分经典 / 近期热门。
-  无封面的榜单自动取第一名作品的封面，点开榜单按排名展示影片，同样支持下滑加载更多。
-- **详情页的相关卡片** — TMDB 合集、IMDb 相关系列、豆瓣收录于榜单统一放在详情页右侧栏，
-  显示为同一款紧凑卡片（封面 + 名称 + 一行说明）：TMDB 合集进入合集页，IMDb 相关系列
-  按上映年份浏览全部相关作品，豆瓣的每个榜单卡片直接打开该榜单的排名影片。中间正文与简介
-  占满剩余宽度，面板较窄时右侧栏自动落到正文下方。
-- **详情元数据** — 详情页在评分标签下以小型标签展示国家/地区、分类与片长：豆瓣来自条目
-  接口，TMDB 来自电影详情接口，IMDb 来自其浏览器 GraphQL 接口；从推荐行进入的豆瓣条目
-  （推荐数据不带年份）会用同一次详情请求补上发行年份。
-- **BT 资源** — 查找 BT 资源，可按大小、做种、下载排序，支持下滑/「加载更多」分页；
-  可复制磁力链接或打开来源页。
-- **AI 选资源** — 点击 BT 列表上方的「AI 选资源」会打开对话框，但只有按下「开始评估」才会
-  调用模型；评估前可先选偏好：画质（最高画质 / 均衡 / 小体积）、语言与字幕，提示词会按偏好
-  加权。对话框右上角可切换「简单模式 / 自由模式」，自由模式下简单模式选好的偏好已映射进
-  提示词，可直接查看并编辑，同时查看模型的原始输出；要求的 JSON 输出格式放在系统提示词里，
-  不可编辑。对话框底部会显示当前模型，也可以直接在那里切换（默认跟随设置里的模型）。Host
-  调用当前 DSH Profile 配置的模型（经由 DSH LLM 服务）综合做种、大小、片源质量与索引可靠性
-  挑出最佳资源；也可在设置里另选模型。被选中的行会高亮并显示「AI 推荐」徽标，列表上方展示推荐
-  理由。结果按当前条目缓存，再次打开对话框会直接展示上次结果，并支持「重新评估」。
+- **多源搜索** — 同时检索 TMDB、IMDb 和豆瓣，结果按来源分组。
+- **热门与渠道浏览** — 首页热门行，以及各来源的渠道页、分类标签和无限加载。
+- **豆瓣榜单** — 电影与剧集的官方、年度和类型榜单，以及电影冷门佳作。
+- **详情页** — 简介、元数据、相关作品与榜单收录。
+- **BT 资源** — 搜索、排序、复制磁力链接和打开来源页。
+- **AI 选资源** — 用 Profile 模型为 BT 资源排序，可选偏好并编辑提示词。
+- **设置** — 在一个对话框里管理数据源、TMDB API Key 和默认模型。
 
 ## 安装
 
@@ -57,14 +39,19 @@ dsh plugin --profile desktop add dsh-movie-workbench
 也支持 Git URL：`dsh plugin --profile desktop add
 git+https://github.com/aidc-lab/dsh-movie-workbench.git`。
 
-## 数据源设置
+## 设置对话框
 
-页头 TMDB Key 按钮旁的齿轮按钮打开设置弹层。数据源开关保存在 `localStorage`
-（`dsh-movie-workbench.sources`）；至少保留一个渠道，只剩一个时筛选行收起到该渠道。
+页头的齿轮按钮打开设置对话框，浏览器的本地偏好都集中在这里：
 
-同一个弹层会列出 Profile 的 LLM 提供商所提供的模型（来自 Host 的 `GET /models`），可指定
-「AI 选资源」使用的模型；选择保存在 `localStorage`（`dsh-movie-workbench.ai-model`），
-「跟随默认」则始终跟随 Profile 当前模型。只有配置了 DSH LLM 服务与模型时才可用。
+- **数据源** — TMDB、IMDb、豆瓣三个开关，保存在 `localStorage`
+  （`dsh-movie-workbench.sources`）；至少保留一个渠道，只剩一个时筛选行收起到该渠道。
+- **TMDB API Key** — 支持 v3 Key 或 v4 读取令牌，只保存在本机浏览器
+  （`dsh-movie-workbench.tmdb-key`）；Host 端已配置 Key 时可以留空。
+- **默认模型** — 列出 Profile 的 LLM 提供商所提供的模型（来自 Host 的 `GET /models`），
+  供「AI 选资源」使用；选择保存在 `localStorage`（`dsh-movie-workbench.ai-model`）。
+  只有配置了 DSH LLM 服务与模型时才可用。
+
+所有修改按下「保存」后才会生效；点 ×、按 Escape 或点击对话框外部关闭会丢弃本次修改。
 
 ## Host API
 
@@ -87,9 +74,8 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `POST /pick` | 让 Host 端 AI 模型从最多 30 条 BT 资源中挑选最佳；请求体 `{ item, rows, lang, preferences?, prompt?, preview?, model? }`（`preferences` 为 `{ quality, language, subtitle }`，`prompt` 覆盖默认提示词，`preview: true` 只返回提示词不调用模型），返回 `pick`（`{id, rank, reason}`）、`picks`、`prompt`、`preferences` 与 `errors`（`llm_unavailable` / `llm_no_model` / `bad_preferences` / `bad_prompt` / 超时等） |
 | `GET /image?url=` | 代理白名单图床的海报 |
 
-所有上游 HTTP 请求都在 Host 完成，因此页面保持同源，豆瓣的 `Referer` 要求也在服务端
-处理。IMDb 浏览页通过 IMDb 的浏览器 GraphQL 接口做游标分页，可以一直下滑加载新条目；
-首页推荐行仍使用固定精选列表，因此数量有限。
+所有上游 HTTP 请求都在 Host 完成，因此页面保持同源，豆瓣的 `Referer` 要求也由服务端
+处理。所有路由都经过 DSH 浏览器会话的访问检查；响应仅限同源，不发送 CORS 授权。
 
 ## 配置
 
@@ -101,18 +87,24 @@ Host 端（`index.js` + `lib/`）只有一个前缀路由 `/movie-workbench/api`
 | `maxResults` | `12` | 每个渠道的结果上限 |
 | `requestTimeoutMs` | `8000` | 单个上游请求超时 |
 
-TMDB 需要凭据：可设置 `tmdbApiKey`，或在面板的 Key 控件里粘贴 v3 Key / v4 令牌
+TMDB 需要凭据：可设置 `tmdbApiKey`，或在面板的「设置」对话框里粘贴 v3 Key / v4 令牌
 （只保存在本机浏览器）。IMDb 与豆瓣无需 Key。
+
+## 开发
+
+浏览器端仍保持单个 `client.js`（DSH 客户端加载器只接受一次 classic-script 注册），
+直接修改即可，没有构建步骤。Host 拆分为 `lib/host/` 下的独立 ES 模块，统一由
+`lib/host.js` 导出；上游适配器位于 `lib/providers/`，统一由 `lib/providers.js` 导出。
+
+| 命令 | 用途 |
+|---|---|
+| `make check` | 对所有源文件执行 `node --check` |
+| `make smoke` | 离线的 client/render/pick 测试 |
+| `make live` | 对 TMDB、IMDb、豆瓣和 BT 索引的在线联调 |
+| `make publish` | 发布到 npm（会提示输入 2FA 验证码） |
 
 ## 说明
 
-- 需要 DSH Web GUI（提供 `ctx.webServer`），并能访问
-  `api.themoviedb.org`、`v2.sg.media-imdb.com`、`movie.douban.com`、`bt4gprx.com`、
-  `bitsearch.to` 及海报图床。
+- 需要 DSH Web GUI，并能访问 TMDB、IMDb、豆瓣、BT4G、BitSearch 及海报图床。
 - IMDb 搜索结果没有评分；豆瓣推荐带公开的 `rate`；TMDB 提供评分与票数。
-- IMDb 相关系列来自 IMDb 浏览器 GraphQL 的 `connections` 字段（单个条目最多 1250 条关系）；
-  豆瓣收录于榜单来自条目详情里的 `subject_collections` 字段。
-- 渠道浏览每页 20 条、最多 100 页；IMDb 浏览页基于精选种子列表经 suggestion API 解析，
-  因此一页可能不足 20 条。
-- suggestion、rexxar、BT4G 与 BitSearch 都是未公开接口，可能变更或限流；失败时按渠道
-  单独提示，不影响其他渠道。
+- 部分上游接口未公开，可能变更或限流；失败按渠道隔离，不影响其他渠道。
