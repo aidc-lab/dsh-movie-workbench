@@ -12,7 +12,7 @@ SOURCES := index.js client.js lib/host.js lib/providers.js scripts/dev-server.mj
            $(wildcard lib/host/*.js) $(wildcard lib/host/routes/*.js) \
            $(wildcard lib/providers/*.js) \
            tests/client-smoke.mjs tests/render-smoke.mjs tests/pick-smoke.mjs \
-           tests/access-smoke.mjs
+           tests/access-smoke.mjs tests/torrent-smoke.mjs
 
 NPMFLAGS = $(if $(NPM_CACHE),--cache $(NPM_CACHE))
 
@@ -30,6 +30,7 @@ smoke: check ## Offline tests: panel registration and rendered page states
 	$(NODE) tests/client-smoke.mjs
 	$(NODE) tests/render-smoke.mjs
 	$(NODE) tests/access-smoke.mjs
+	$(NODE) tests/torrent-smoke.mjs
 	$(NODE) tests/pick-smoke.mjs
 
 test: smoke ## Alias for the offline test suite (no network)

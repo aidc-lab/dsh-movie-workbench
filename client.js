@@ -2454,7 +2454,7 @@ window.__ModuleLoader__.load({
         const params = new URLSearchParams()
         params.set('q', q)
         params.set('source', 'all')
-        params.set('limit', '20')
+        params.set('limit', '30')
         params.set('page', String(page))
         if (altQuery) params.set('alt', altQuery)
         return callApi('/torrents?' + params.toString(), {

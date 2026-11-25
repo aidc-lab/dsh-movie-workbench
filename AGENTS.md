@@ -16,7 +16,7 @@ DSH plugin ("影视工作台"): a Host HTTP route plus a browser panel that sear
 
 - `make check` — `node --check` every source. New files under `lib/host/` or `lib/providers/` are picked up by Makefile wildcards; other new source files must be added to `SOURCES`.
 - `make smoke` (alias `make test`) — `check` plus all offline tests.
-- `node tests/client-smoke.mjs`, `node tests/render-smoke.mjs`, `node tests/access-smoke.mjs`, `node tests/pick-smoke.mjs` — run one test; plain Node scripts with no framework or filters.
+- `node tests/client-smoke.mjs`, `node tests/render-smoke.mjs`, `node tests/access-smoke.mjs`, `node tests/torrent-smoke.mjs`, `node tests/pick-smoke.mjs` — run one test; plain Node scripts with no framework or filters.
 - `make live` — network end-to-end harness for every Host route. It starts an ephemeral server, runs checks, then exits (it is not a dev server). It clears `TMDB_API_KEY` to exercise the keyless path. Use it for host/provider changes; smoke covers `/pick`, `/models`, the admission guard and the client.
 - `make pack` — dry-run of published files. `package.json` `files` is a whitelist: new runtime files outside `lib/`, `client.js`, etc. must be added.
 - `make install` / `make uninstall` — `dsh plugin --profile desktop ...`; fully quit DSH Desktop first and keep `pnpm` on `PATH`.

@@ -332,7 +332,8 @@ results below the metadata.
   value answers `400 bad_source`; an empty `q` answers `400 empty_query`.
 - Each provider runs one search per supplied query (`q`, and `alt` when present
   and different), merges its own rows, removes duplicates by info hash and sorts
-  by `seeders` descending (unknown seeders last).
+  by `seeders` descending (unknown seeders last). The multi-spelling ordering
+  and provider quota below were refined in v1.21.
 - For `source=all` the providers must stay visible together: each provider
   contributes its top rows up to a quota (`max(4, ceil(limit / providers))`), the
   provider groups are interleaved one row at a time, duplicates are dropped and
@@ -1043,3 +1044,42 @@ check returns no rejection.
   production admission lives in the `index.js` route registration.
 - `tests/access-smoke.mjs` covers the 401/403/503 paths, the route wiring and
   the absence of a CORS grant.
+
+## v1.20 — BitSearch `hasMore` follows the site's pagination
+
+The v1.12 paragraph that inferred a next BitSearch page from a full 20-row page
+is superseded. Category filtering can leave fewer than 20 parsed cards even when
+the site links later pages, which previously stopped the client's "load more"
+footer early.
+
+- The BitSearch page parser now reads the pagination links and reports
+  `hasMore: true` when any linked `page=<n>` is greater than the requested page.
+- `searchTorrentsBitsearchPage()` returns `{ rows, hasMore }` and caches both
+  values; `searchTorrentsBitsearch()` remains the rows-only compatibility wrapper.
+  The Host passes the provider metadata through instead of comparing the row
+  count with a page size.
+- An empty result page is a valid empty result, not `upstream_error`. In
+  particular, a shorter `alt` spelling can run out of pages while the primary
+  spelling still has more; that no longer fails the whole BitSearch source.
+- `tests/torrent-smoke.mjs` covers pagination-link detection, cached metadata,
+  the rows-only wrapper path and empty pages.
+
+## v1.21 — localized title priority and a full first page
+
+Searching only the original-language spelling buried Chinese releases under
+better-seeded English releases when BitSearch returned both spellings. The
+browser now keeps both spellings visible and fills the page.
+
+- The browser requests `limit=30` for `/torrents` (the server default remains
+  20; the maximum remains 30), so the two title spellings both fit on page 1.
+- Each spelling's rows are still sorted by `seeders` descending. When `alt` is
+  present, the provider interleaves the localized spelling at two rows per one
+  original-spelling row: `q` rows are the fallback, `alt` is the title shown in
+  the UI. Duplicates by info hash are dropped.
+- For `source=all`, each provider still gets a first-pass quota of
+  `max(4, ceil(limit / providers))`; unused slots are then filled round-robin
+  from providers that still have rows, so a provider with fewer results no
+  longer leaves a short page.
+- `hasMore` and page-based pagination are unchanged.
+- `tests/torrent-smoke.mjs` covers interleaving, localized weighting and
+  quota fill.
