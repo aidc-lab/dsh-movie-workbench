@@ -1022,8 +1022,8 @@ when present.
 
 `index.js` no longer forwards every request straight to `createHandler`. It
 checks each request through the profile's DSH `connection` service
-(`connection.admit(req)`) and only invokes the data layer when admission
-returns a live Peer.
+(`connection.requestRejection(req)`) and only invokes the data layer when the
+check returns no rejection.
 
 - Admission covers every method and endpoint under `/movie-workbench/api`,
   including `/image` requests issued by the page's `<img>` elements.
@@ -1032,8 +1032,8 @@ returns a live Peer.
 - `403 forbidden`: the Host/Origin fence refused the request (cross-site
   marker, opaque Origin, or an untrusted Host).
 - `503 access_unavailable`: the profile mounted no `connection` service, or
-  `admit()` failed / returned no decision. The route fails closed instead of
-  serving data.
+  `requestRejection()` failed or returned an unexpected value. The route fails
+  closed instead of serving data.
 - Responses carry no `access-control-*` headers. `OPTIONS` is a normal `405`
   with `Allow: GET, HEAD` (or `Allow: POST` for `/pick`); same-origin fetches
   and `<img>` requests carry the host-only `SameSite=Strict` browser cookie, so

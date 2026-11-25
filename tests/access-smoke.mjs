@@ -2,7 +2,7 @@
  * Offline tests for DSH browser admission and the same-origin response policy.
  *
  * The production boundary is `index.js`: it asks the profile's `connection`
- * service to admit each request before the data layer runs. These tests use a
+ * service to check each request before the data layer runs. These tests use a
  * fake `connection` service and Node-style request/response pairs so the
  * 401/403/503 paths and the route wiring stay covered without a DSH process.
  *
@@ -70,14 +70,14 @@ function bodyOf(res) {
 
 {
   const res = response()
-  const admitted = createAdmission(() => ({ admit: () => ({ rejection: 401 }) }))(request(), res)
+  const admitted = createAdmission(() => ({ requestRejection: () => 401 }))(request(), res)
   check('unauthenticated connection is refused with 401', admitted === false && res.status === 401, String(res.status))
   check('401 body is unauthorized', bodyOf(res)?.code === 'unauthorized')
 }
 
 {
   const res = response()
-  const admitted = createAdmission(() => ({ admit: () => ({ rejection: 403 }) }))(request(), res)
+  const admitted = createAdmission(() => ({ requestRejection: () => 403 }))(request(), res)
   check('untrusted origin is refused with 403', admitted === false && res.status === 403, String(res.status))
   check('403 body is forbidden', bodyOf(res)?.code === 'forbidden')
 }
@@ -85,22 +85,22 @@ function bodyOf(res) {
 {
   const res = response()
   const admitted = createAdmission(() => ({
-    admit: () => {
+    requestRejection: () => {
       throw new Error('broken service')
     },
   }))(request(), res)
-  check('throwing admit refuses with 503', admitted === false && res.status === 503, String(res.status))
+  check('throwing requestRejection refuses with 503', admitted === false && res.status === 503, String(res.status))
 }
 
 {
   const res = response()
-  const admitted = createAdmission(() => ({ admit: () => ({}) }))(request(), res)
-  check('decision without peer refuses with 503', admitted === false && res.status === 503, String(res.status))
+  const admitted = createAdmission(() => ({ requestRejection: () => 'unexpected' }))(request(), res)
+  check('unexpected rejection value refuses with 503', admitted === false && res.status === 503, String(res.status))
 }
 
 {
   const res = response()
-  const admitted = createAdmission(() => ({ admit: () => ({ peer: { id: 'browser' } }) }))(request(), res)
+  const admitted = createAdmission(() => ({ requestRejection: () => undefined }))(request(), res)
   check('admitted request proceeds untouched', admitted === true && res.status === 0 && res.body === null)
 }
 
@@ -128,10 +128,10 @@ function bodyOf(res) {
 
 {
   let route
-  let admission = { rejection: 401 }
+  let rejection = 401
   const ctx = {
     get(name) {
-      return name === 'connection' ? { admit: () => admission } : undefined
+      return name === 'connection' ? { requestRejection: () => rejection } : undefined
     },
     effect(callback) {
       callback()
@@ -152,7 +152,7 @@ function bodyOf(res) {
   route.handler(request(), refused)
   check('production route admits before the handler', refused.status === 401 && bodyOf(refused)?.code === 'unauthorized')
 
-  admission = { peer: { id: 'browser' } }
+  rejection = undefined
   const allowed = response()
   route.handler(request(), allowed)
   await new Promise(resolve => setTimeout(resolve, 0))

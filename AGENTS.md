@@ -4,7 +4,7 @@ DSH plugin ("影视工作台"): a Host HTTP route plus a browser panel that sear
 
 ## Architecture
 
-- `index.js` is the Host entry: `inject = ['webServer']`, one `prefix` route `/movie-workbench/api` registered through `ctx.effect`. Every request is admitted through `ctx.get('connection').admit(req)` before `createHandler`; keep that wrapper around new routes. `llm` / `agentDefaultModel` are optional `ctx.get()` services, so the plugin must load in profiles without the AI stack.
+- `index.js` is the Host entry: `inject = ['webServer']`, one `prefix` route `/movie-workbench/api` registered through `ctx.effect`. Every request is admitted through `ctx.get('connection').requestRejection(req)` before `createHandler`; keep that wrapper around new routes. `llm` / `agentDefaultModel` are optional `ctx.get()` services, so the plugin must load in profiles without the AI stack.
 - `lib/host.js` and `lib/providers.js` are public barrels; implementations live in `lib/host/` (router, config, params, pick, route modules) and `lib/providers/` (tmdb, imdb, douban, torrents, shared core). Import through the barrels.
 - `client.js` is the whole browser half. The DSH loader expects one classic script: `window.__ModuleLoader__.load({ id: 'dsh-movie-workbench', ... })`, no top-level import/export, no JSX, `require('react')` only. CSS is one inline string injected as a `<style>` element.
 - The page is one component that switches views via `data-view` (collection → series → chart → detail → channel → list). View state lives in a module-scoped `session` object so switching sidebar panels restores the last screen; add new persistent view state there.
