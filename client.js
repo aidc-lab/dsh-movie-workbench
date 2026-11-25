@@ -187,7 +187,7 @@ window.__ModuleLoader__.load({
       'error.network': '无法连接本地插件接口，请确认插件已启用后重试。',
       'error.empty_query': '请输入片名后再搜索。',
       'error.bad_source': '这个渠道暂不支持。',
-      'error.tmdb_key_missing': 'TMDB 需要 API Key，点右上角的钥匙图标填写。',
+      'error.tmdb_key_missing': 'TMDB 需要 API Key，请在「设置」里填写。',
       'error.tmdb_unauthorized': 'TMDB Key 无效或已过期，请重新填写。',
       'error.upstream_error': '上游接口暂时不可用，请稍后重试。',
       'error.timeout': '请求超时，请稍后重试。',
@@ -220,29 +220,28 @@ window.__ModuleLoader__.load({
       'kind.tv': '剧集',
       'kind.short': '短片',
       'kind.other': '其他',
-      'key.button': 'TMDB Key',
-      'key.title': 'TMDB API Key',
       'key.hint': '只保存在本机浏览器。可在 TMDB 账户设置里创建 API Key（v3）或读取令牌（v4）。',
       'key.placeholder': '粘贴 v3 Key 或 v4 令牌',
-      'key.save': '保存',
       'key.clear': '清除',
       'key.saved': 'TMDB Key 已保存到本机浏览器。',
       'key.server': '服务端已配置 Key，本机留空即可使用。',
-      'key.local': '正在使用本机 Key。',
+      'key.local': '当前使用本机保存的 Key。',
       'key.open': '打开 TMDB 设置',
-      'settings.button': '数据源设置',
-      'settings.title': '数据源',
+      'settings.button': '设置',
+      'settings.title': '设置',
+      'settings.sources': '数据源',
+      'settings.tmdbKey': 'TMDB API Key',
       'settings.sourcesHint': '关闭后该数据源不再出现在推荐、筛选项和搜索结果中。',
       'settings.toggle': '切换 {source} 数据源',
       'settings.lastSource': '至少保留一个数据源。',
       'settings.defaultModel': '默认模型',
-      'settings.usage': '用途',
-      'settings.modelColumn': '模型',
       'settings.aiPickUsage': 'AI 选资源',
       'settings.aiModelLoading': '正在读取可用模型…',
       'settings.aiModelEmpty': '当前 Profile 没有可选的模型。',
       'settings.aiModelFailed': '读取模型列表失败',
       'settings.aiModelRetry': '重试',
+      'settings.save': '保存',
+      'settings.saved': '设置已保存。',
       'aiDialog.title': 'AI 选资源',
       'aiDialog.close': '关闭',
       'aiDialog.prefs': '选择倾向',
@@ -385,7 +384,7 @@ window.__ModuleLoader__.load({
       'error.network': 'The local plugin route is unreachable. Check that the plugin is enabled.',
       'error.empty_query': 'Enter a title before searching.',
       'error.bad_source': 'That channel is not supported.',
-      'error.tmdb_key_missing': 'TMDB needs an API key. Use the key control in the page header.',
+      'error.tmdb_key_missing': 'TMDB needs an API key. Add one in Settings.',
       'error.tmdb_unauthorized': 'The TMDB key is invalid or expired. Enter it again.',
       'error.upstream_error': 'The upstream endpoint is unavailable right now.',
       'error.timeout': 'The request timed out. Try again.',
@@ -418,29 +417,28 @@ window.__ModuleLoader__.load({
       'kind.tv': 'Series',
       'kind.short': 'Short',
       'kind.other': 'Other',
-      'key.button': 'TMDB key',
-      'key.title': 'TMDB API key',
       'key.hint': 'Stored in this browser only. Create an API key (v3) or read your API read access token (v4) in your TMDB account settings.',
       'key.placeholder': 'Paste a v3 key or v4 token',
-      'key.save': 'Save',
       'key.clear': 'Clear',
       'key.saved': 'TMDB key saved in this browser.',
       'key.server': 'A server-side key is configured; leave this empty to use it.',
-      'key.local': 'Using the key from this browser.',
+      'key.local': 'Using the key saved in this browser.',
       'key.open': 'Open TMDB settings',
-      'settings.button': 'Data sources',
-      'settings.title': 'Data sources',
+      'settings.button': 'Settings',
+      'settings.title': 'Settings',
+      'settings.sources': 'Data sources',
+      'settings.tmdbKey': 'TMDB API key',
       'settings.sourcesHint': 'A disabled source is hidden from recommendations, filters and search results.',
       'settings.toggle': 'Toggle the {source} source',
       'settings.lastSource': 'Keep at least one source enabled.',
       'settings.defaultModel': 'Default model',
-      'settings.usage': 'Usage',
-      'settings.modelColumn': 'Model',
       'settings.aiPickUsage': 'AI pick',
       'settings.aiModelLoading': 'Loading available models…',
       'settings.aiModelEmpty': 'This profile has no selectable model.',
       'settings.aiModelFailed': 'Could not load the model list',
       'settings.aiModelRetry': 'Retry',
+      'settings.save': 'Save',
+      'settings.saved': 'Settings saved.',
       'aiDialog.title': 'AI torrent pick',
       'aiDialog.close': 'Close',
       'aiDialog.prefs': 'Preferences',
@@ -543,6 +541,22 @@ window.__ModuleLoader__.load({
       const provider = typeof value.provider === 'string' ? value.provider.trim() : ''
       const model = typeof value.model === 'string' ? value.model.trim() : ''
       return provider && model ? { provider: provider, model: model } : null
+    }
+
+    /** Parse the "provider|model" value emitted by the model picker. */
+    function parseAiModelChoice(value) {
+      if (typeof value !== 'string') return null
+      const separator = value.indexOf('|')
+      if (separator === -1) return null
+      const provider = value.slice(0, separator)
+      const model = value.slice(separator + 1)
+      return provider && model ? { provider: provider, model: model } : null
+    }
+
+    function sameAiModel(left, right) {
+      if (!left && !right) return true
+      if (!left || !right) return false
+      return left.provider === right.provider && left.model === right.model
     }
 
     const AI_PICK_PREFS_STORAGE = 'dsh-movie-workbench.ai-prefs'
@@ -758,17 +772,6 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function GlyphKey(props) {
-      const size = props.size || 17
-      return h(
-        'svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', style: SVG, 'aria-hidden': 'true' },
-        h('circle', { cx: 8.1, cy: 9.2, r: 4.3, stroke: 'currentColor', strokeWidth: 1.7 }),
-        h('circle', { cx: 8.1, cy: 9.2, r: 1.5, stroke: 'currentColor', strokeWidth: 1.5 }),
-        h('path', { d: 'M12.4 9.2h7.9', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' }),
-        h('path', { d: 'M16.4 9.2v3.1M19.9 9.2v2.4', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' }),
-      )
-    }
-
     function GlyphGear(props) {
       const size = props.size || 17
       return h(
@@ -920,11 +923,22 @@ window.__ModuleLoader__.load({
       '.mw-source-select{display:inline-flex;align-items:center;gap:7px;flex:none;margin-left:2px;}',
       '.mw-source-label{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);}',
       '.mw-select-wrap{position:relative;display:inline-flex;align-items:center;}',
-      '.mw-select{appearance:none;-webkit-appearance:none;height:40px;box-sizing:border-box;padding:0 34px 0 13px;border-radius:12px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:border-color .15s ease,background-color .15s ease;}',
+      '.mw-select{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;appearance:none;-webkit-appearance:none;height:40px;box-sizing:border-box;min-width:96px;max-width:160px;padding:0 12px 0 14px;border-radius:12px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer;transition:border-color .15s ease,background-color .15s ease;}',
       '.mw-select:hover{border-color:var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);}',
-      '.mw-select:focus{outline:none;border-color:var(--dsw-alias-brand-primary);}',
-      '.mw-select option{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);}',
-      '.mw-select-chevron{position:absolute;right:11px;display:flex;color:var(--dsw-alias-label-secondary);pointer-events:none;}',
+      '.mw-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;border-color:var(--dsw-alias-brand-primary);}',
+      '.mw-select[aria-expanded="true"]{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-select-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.mw-select-chevron{display:inline-flex;flex:none;color:var(--dsw-alias-label-tertiary);transition:transform .15s ease;}',
+      '.mw-select[aria-expanded="true"] .mw-select-chevron{transform:rotate(180deg);}',
+      '.mw-source-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:20;min-width:max(132px,100%);padding:6px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 14px 34px color-mix(in srgb,var(--dsw-alias-bg-overlay) 22%,transparent);display:flex;flex-direction:column;gap:2px;}',
+      '.mw-source-menu[hidden]{display:none;}',
+      '.mw-source-option{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;text-align:left;white-space:nowrap;cursor:pointer;transition:background-color .12s ease,color .12s ease;}',
+      '.mw-source-option:hover{background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-source-option:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;background:var(--dsw-alias-bg-layer-2);}',
+      '.mw-source-option[data-selected="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 9%,transparent);color:var(--dsw-alias-brand-primary);font-weight:600;}',
+      '.mw-source-option[data-selected="true"]:hover{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 13%,transparent);}',
+      '.mw-source-option-check{flex:none;width:14px;font-size:12px;text-align:center;color:var(--dsw-alias-brand-primary);}',
+      '.mw-source-option-label{flex:1;}',
       '.mw-notices{flex:none;padding:12px clamp(20px,3vw,40px) 0;}',
       '.mw-notices-inner{display:flex;flex-direction:column;gap:6px;margin:0 auto;}',
       '.mw-notice{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;border:0.5px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 35%,transparent);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 8%,transparent);color:var(--dsw-alias-label-primary);font-size:13px;}',
@@ -1105,19 +1119,24 @@ window.__ModuleLoader__.load({
 
 
 
-      '.mw-key-popover{position:absolute;top:calc(86px + var(--dsh-frame-top-clearance,0px));right:clamp(20px,3vw,40px);z-index:20;width:min(340px,calc(100vw - 48px));padding:16px;border-radius:14px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-overlay);box-shadow:0 12px 32px color-mix(in srgb,var(--dsw-alias-bg-base) 45%,transparent);}',
-      '.mw-key-title{margin:0 0 4px;font-size:14px;line-height:20px;font-weight:500;}',
-      '.mw-key-hint{margin:0 0 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
-      '.mw-key-input{width:100%;height:34px;box-sizing:border-box;padding:0 10px;border-radius:8px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;margin-bottom:10px;}',
+      '.mw-key-input{width:100%;height:34px;box-sizing:border-box;padding:0 10px;border-radius:8px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;}',
       '.mw-key-input:focus{outline:none;border-color:var(--dsw-alias-brand-primary);}',
-      '.mw-key-actions{display:flex;align-items:center;gap:8px;}',
-      '.mw-key-state{margin-top:10px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
-      '.mw-key-link{margin-top:6px;font-size:12px;line-height:18px;}',
+      '.mw-key-input::placeholder{color:var(--dsw-alias-label-tertiary);}',
+      '.mw-key-link{margin:8px 0 0;font-size:12px;line-height:18px;}',
       '.mw-key-link a{color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));text-decoration:none;}',
       '.mw-key-link a:hover{text-decoration:underline;}',
       '.mw-head{position:relative;}',
-      '.mw-settings-popover{width:min(320px,calc(100vw - 48px));}',
-      '.mw-settings-list{display:flex;flex-direction:column;gap:2px;margin-top:2px;}',
+      '.mw-modal.mw-settings-dialog{width:min(560px,100%);max-height:min(80vh,680px);}',
+      '.mw-settings-dialog:focus{outline:none;}',
+      '.mw-modal-body.mw-settings-body{padding-bottom:10px;}',
+      '.mw-modal-body.mw-settings-body{overflow-x:hidden;}',
+      '.mw-settings-dialog .mw-model-panel{left:auto;right:0;width:min(320px,calc(100vw - 96px));max-height:min(280px,42vh);}',
+      '.mw-settings-section{padding:12px 0;}',
+      '.mw-settings-section:first-child{padding-top:2px;}',
+      '.mw-settings-section + .mw-settings-section{border-top:0.5px solid var(--dsw-alias-border-l1);}',
+      '.mw-settings-section-title{margin:0;font-size:13px;line-height:18px;font-weight:600;color:var(--dsw-alias-label-primary);}',
+      '.mw-settings-section-hint{margin:4px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-settings-list{display:flex;flex-direction:column;gap:2px;margin-top:6px;}',
       '.mw-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;}',
       '.mw-setting-row + .mw-setting-row{border-top:0.5px solid var(--dsw-alias-border-l1);}',
       '.mw-setting-text{display:flex;flex-direction:column;min-width:0;}',
@@ -1128,22 +1147,20 @@ window.__ModuleLoader__.load({
       '.mw-switch:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
       '.mw-switch-thumb{position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:var(--dsw-alias-label-primary-foreground);transition:transform .15s ease;}',
       '.mw-switch[data-on="true"] .mw-switch-thumb{transform:translateX(16px);}',
-      '.mw-settings-divider{height:0.5px;margin:12px 0;background:var(--dsw-alias-border-l1);}',
-      '.mw-settings-subtitle{margin-top:0;font-size:12px;}',
-      '.mw-setting-note{margin:6px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
-      '.mw-model-trigger[data-layout="stacked"]{width:100%;max-width:none;height:auto;min-height:38px;padding:6px 10px;align-items:flex-start;justify-content:space-between;text-align:left;}',
-      '.mw-model-trigger-stack{display:flex;flex-direction:column;gap:1px;min-width:0;}',
-      '.mw-model-trigger-name{font-size:12.5px;line-height:17px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
-      '.mw-model-trigger-sub{font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
-      '.mw-setting-table{margin-top:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;}',
-      '.mw-setting-table-head{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;padding:6px 10px;background:var(--dsw-alias-bg-layer-2);border-bottom:1px solid var(--dsw-alias-border-l1);border-radius:9px 9px 0 0;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-tertiary);}',
-      '.mw-setting-table-row{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;align-items:center;padding:8px 10px;}',
-      '.mw-setting-table-label{font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary);}',
-      '.mw-setting-table-model{min-width:0;}',
-      '.mw-setting-table-note{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
-      '.mw-setting-ai-model{align-items:flex-start;}',
-      '.mw-setting-select{flex:none;max-width:150px;height:30px;padding:0 26px 0 8px;font-size:12px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);border:0.5px solid var(--dsw-alias-border-l1);cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 13px) 13px,calc(100% - 9px) 13px;background-size:4px 4px,4px 4px;background-repeat:no-repeat;}',
-      '.mw-setting-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px;}',
+      '.mw-settings-notice{margin:6px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-warn-primary,var(--dsw-alias-label-secondary));}',
+      '.mw-settings-key-row{display:flex;align-items:center;gap:8px;margin-top:8px;}',
+      '.mw-settings-key-row .mw-key-input{flex:1;min-width:0;}',
+      '.mw-settings-key-clear{flex:none;height:34px;padding:0 12px;border-radius:17px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;}',
+      '.mw-settings-key-clear:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2);}',
+      '.mw-settings-key-clear:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}',
+      '.mw-settings-key-state{margin:6px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-setting-model-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:10px;flex-wrap:wrap;}',
+      '.mw-setting-model-label{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary);}',
+      '.mw-setting-model-control{min-width:0;max-width:100%;}',
+      '.mw-setting-model-control .mw-model-trigger{max-width:320px;}',
+      '.mw-setting-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-settings-error{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '@media (max-width:520px){.mw-setting-model-row{align-items:flex-start;flex-direction:column;gap:8px;}.mw-setting-model-control{width:100%;}.mw-setting-model-control .mw-model-picker{width:100%;}.mw-setting-model-control .mw-model-trigger{width:100%;max-width:none;}}',
       '.mw-modal-overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:24px;padding-top:calc(28px + var(--dsh-frame-top-clearance,0px) + 16px);background:color-mix(in srgb,var(--dsw-alias-bg-overlay) 48%,transparent);-webkit-app-region:no-drag;}',
       '.mw-modal{display:flex;flex-direction:column;width:min(520px,100%);-webkit-app-region:no-drag;max-height:min(78vh,620px);border-radius:14px;border:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);box-shadow:0 18px 48px color-mix(in srgb,var(--dsw-alias-bg-overlay) 32%,transparent);overflow:hidden;}',
       '.mw-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 10px;}',
@@ -1961,6 +1978,7 @@ window.__ModuleLoader__.load({
       const selection = catalog && catalog.selection ? catalog.selection : null
       const selected = props.value || (selection ? { provider: selection.provider, model: selection.model } : null)
       const stacked = props.layout === 'stacked'
+      const plain = props.layout === 'plain'
       const emptyLabel = props.phase === 'loading' ? t('aiDialog.modelLoading') : t('aiDialog.modelEmpty')
       const [open, setOpen] = useState(false)
       const pickerRef = useRef(null)
@@ -1992,7 +2010,11 @@ window.__ModuleLoader__.load({
         : h(
           'span',
           { className: 'mw-model-trigger-label' },
-          selected ? [providerNameOf(selected.provider), nameOfModel(selected.provider, selected.model)].join(' · ') : emptyLabel,
+          selected
+            ? plain
+              ? nameOfModel(selected.provider, selected.model)
+              : [providerNameOf(selected.provider), nameOfModel(selected.provider, selected.model)].join(' · ')
+            : emptyLabel,
         )
       return h(
         'div',
@@ -2002,7 +2024,7 @@ window.__ModuleLoader__.load({
           {
             type: 'button',
             className: 'mw-model-trigger',
-            'data-layout': stacked ? 'stacked' : 'inline',
+            'data-layout': stacked ? 'stacked' : plain ? 'plain' : 'inline',
             disabled: models.length === 0,
             'aria-haspopup': 'listbox',
             'aria-expanded': open ? 'true' : 'false',
@@ -2047,6 +2069,78 @@ window.__ModuleLoader__.load({
               }),
           )
           : null,
+      )
+    }
+
+    /** Compact source menu for the toolbar; replaces the native select popup. */
+    function SourcePicker(props) {
+      const t = props.t
+      const [menuOpen, setMenuOpen] = useState(false)
+      const pickerRef = useRef(null)
+      const triggerRef = useRef(null)
+      useEffect(() => {
+        if (!menuOpen) return undefined
+        function onPointerDown(event) {
+          if (pickerRef.current && !pickerRef.current.contains(event.target)) setMenuOpen(false)
+        }
+        function onKey(event) {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          event.stopPropagation()
+          setMenuOpen(false)
+          if (triggerRef.current) triggerRef.current.focus()
+        }
+        document.addEventListener('pointerdown', onPointerDown, true)
+        document.addEventListener('keydown', onKey, true)
+        return () => {
+          document.removeEventListener('pointerdown', onPointerDown, true)
+          document.removeEventListener('keydown', onKey, true)
+        }
+      }, [menuOpen])
+      return h(
+        'div',
+        { className: 'mw-select-wrap', ref: pickerRef },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'mw-select',
+            ref: triggerRef,
+            'aria-haspopup': 'listbox',
+            'aria-expanded': menuOpen ? 'true' : 'false',
+            'aria-label': t('source'),
+            onClick: () => setMenuOpen(value => !value),
+          },
+          h('span', { className: 'mw-select-value' }, sourceLabel(t, props.value)),
+          h('span', { className: 'mw-select-chevron', 'aria-hidden': 'true' }, h(GlyphChevronDown, { size: 14 })),
+        ),
+        h(
+          'div',
+          { className: 'mw-source-menu', role: 'listbox', 'aria-label': t('source'), hidden: menuOpen ? undefined : true },
+          props.options.map(option => {
+            const isSelected = option === props.value
+            return h(
+              'button',
+              {
+                key: option,
+                type: 'button',
+                role: 'option',
+                value: option,
+                'aria-selected': isSelected ? 'true' : 'false',
+                'data-source': option,
+                'data-selected': isSelected ? 'true' : 'false',
+                className: 'mw-source-option',
+                onClick: () => {
+                  setMenuOpen(false)
+                  if (triggerRef.current) triggerRef.current.focus()
+                  props.onChoose(option)
+                },
+              },
+              h('span', { className: 'mw-source-option-check', 'aria-hidden': 'true' }, isSelected ? '✓' : ''),
+              h('span', { className: 'mw-source-option-label' }, sourceLabel(t, option)),
+            )
+          }),
+        ),
       )
     }
 
@@ -3480,133 +3574,198 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function KeyPopover(props) {
+    /**
+     * Settings dialog: data sources, TMDB key and the AI model picker in one
+     * draft form. Nothing is applied until "Save" is pressed.
+     */
+    function SettingsDialog(props) {
       const t = props.t
-      return h(
-        'div',
-        { className: 'mw-key-popover', id: 'movies-workbench-key-panel', role: 'dialog', 'aria-label': t('key.title'), ref: props.panelRef },
-        h('h2', { className: 'mw-key-title' }, t('key.title')),
-        h('p', { className: 'mw-key-hint' }, t('key.hint')),
-        h('input', {
-          className: 'mw-key-input',
-          type: 'password',
-          value: props.draft,
-          placeholder: t('key.placeholder'),
-          spellCheck: false,
-          autoComplete: 'off',
-          autoFocus: true,
-          'aria-label': t('key.placeholder'),
-          onChange: event => props.onDraft(event.target.value),
-          onKeyDown: event => {
-            if (event.key === 'Enter') props.onSave()
-          },
-        }),
-        h(
-          'div',
-          { className: 'mw-key-actions' },
-          h('button', { type: 'button', className: 'mw-btn mw-btn-primary', onClick: props.onSave }, t('key.save')),
-          props.stored ? h('button', { type: 'button', className: 'mw-btn', onClick: props.onClear }, t('key.clear')) : null,
-        ),
-        props.serverConfigured ? h('p', { className: 'mw-key-state' }, t('key.server')) : null,
-        props.stored ? h('p', { className: 'mw-key-state' }, t('key.local')) : null,
-        h(
-          'p',
-          { className: 'mw-key-link' },
-          h('a', { href: TMDB_SETTINGS_URL, target: '_blank', rel: 'noreferrer noopener' }, t('key.open')),
-        ),
-      )
-    }
+      const [draftSources, setDraftSources] = useState(() => Object.assign({}, props.sources))
+      const [keyDraft, setKeyDraft] = useState(props.storedKey || '')
+      const [modelDraft, setModelDraft] = useState(props.aiModel)
+      const [notice, setNotice] = useState(null)
+      const keyInputRef = useRef(null)
+      const dialogRef = useRef(null)
 
-    /** Data-source switches; a disabled source vanishes from every view. */
-    function SettingsPopover(props) {
-      const t = props.t
+      useEffect(() => {
+        const node = props.focusKey ? keyInputRef.current : dialogRef.current
+        if (node && typeof node.focus === 'function') node.focus()
+      }, [])
+
+      useEffect(() => {
+        function onKeyDown(event) {
+          if (event.key !== 'Escape') return
+          event.stopPropagation()
+          props.onClose()
+        }
+        document.addEventListener('keydown', onKeyDown)
+        return () => document.removeEventListener('keydown', onKeyDown)
+      }, [])
+
+      function toggle(provider) {
+        const next = Object.assign({}, draftSources)
+        next[provider] = !next[provider]
+        if (!PROVIDERS.some(candidate => next[candidate])) {
+          setNotice(t('settings.lastSource'))
+          return
+        }
+        setNotice(null)
+        setDraftSources(next)
+      }
+
+      function save() {
+        const enabled = {}
+        PROVIDERS.forEach(provider => { enabled[provider] = Boolean(draftSources[provider]) })
+        props.onSave({ sources: enabled, key: keyDraft.trim(), model: modelDraft })
+      }
+
+      const catalog = props.aiModels || null
+      const models = catalog && Array.isArray(catalog.models) ? catalog.models : []
+      let modelControl = null
+      if (props.aiModelsPhase === 'loading' || props.aiModelsPhase === 'idle') {
+        modelControl = h('p', { className: 'mw-setting-note' }, t('settings.aiModelLoading'))
+      } else if (props.aiModelsPhase === 'error') {
+        modelControl = h(
+          'div',
+          { className: 'mw-settings-error' },
+          h('span', null, t('settings.aiModelFailed')),
+          h('button', { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onReloadAiModels }, t('settings.aiModelRetry')),
+        )
+      } else if (models.length === 0) {
+        modelControl = h('p', { className: 'mw-setting-note' }, t('settings.aiModelEmpty'))
+      } else {
+        modelControl = h(ModelPicker, {
+          t,
+          catalog,
+          phase: props.aiModelsPhase,
+          value: modelDraft,
+          onChoose: value => setModelDraft(parseAiModelChoice(value)),
+          placement: 'up',
+          layout: 'plain',
+          ariaLabel: t('settings.aiPickUsage'),
+        })
+      }
+
       return h(
         'div',
         {
-          className: 'mw-key-popover mw-settings-popover',
-          id: 'movies-workbench-settings-panel',
-          role: 'dialog',
-          'aria-label': t('settings.title'),
-          ref: props.panelRef,
+          className: 'mw-modal-overlay',
+          onMouseDown: event => {
+            if (event.target === event.currentTarget) props.onClose()
+          },
         },
-        h('h2', { className: 'mw-key-title' }, t('settings.title')),
-        h('p', { className: 'mw-key-hint' }, t('settings.sourcesHint')),
         h(
           'div',
-          { className: 'mw-settings-list' },
-          PROVIDERS.map(provider => h(
+          {
+            className: 'mw-modal mw-settings-dialog',
+            id: 'movies-workbench-settings-panel',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-labelledby': 'movies-workbench-settings-title',
+            tabIndex: -1,
+            ref: dialogRef,
+          },
+          h(
             'div',
-            { className: 'mw-setting-row', key: 'setting-' + provider },
-            h(
-              'span',
-              { className: 'mw-setting-text' },
-              h('span', { className: 'mw-setting-name' }, sourceLabel(t, provider)),
-              h('span', { className: 'mw-setting-desc' }, t('recommend.' + provider)),
-            ),
+            { className: 'mw-modal-head' },
+            h('h2', { className: 'mw-modal-title', id: 'movies-workbench-settings-title' }, t('settings.title')),
             h(
               'button',
-              {
-                type: 'button',
-                role: 'switch',
-                className: 'mw-switch',
-                'data-on': props.sources[provider] ? 'true' : 'false',
-                'aria-checked': props.sources[provider] ? 'true' : 'false',
-                'aria-label': t('settings.toggle', { source: sourceLabel(t, provider) }),
-                onClick: () => props.onToggle(provider),
-              },
-              h('span', { className: 'mw-switch-thumb' }),
+              { type: 'button', className: 'mw-modal-close', 'aria-label': t('aiDialog.close'), onClick: props.onClose },
+              '×',
             ),
-          )),
-        ),
-        h('div', { className: 'mw-settings-divider', 'aria-hidden': 'true' }),
-        h('h2', { className: 'mw-key-title mw-settings-subtitle' }, t('settings.defaultModel')),
-        (() => {
-          const catalog = props.aiModels || null
-          const models = catalog && Array.isArray(catalog.models) ? catalog.models : []
-          if (props.aiModelsPhase === 'loading') {
-            return h('p', { className: 'mw-setting-note' }, t('settings.aiModelLoading'))
-          }
-          if (props.aiModelsPhase === 'error') {
-            return h(
-              'div',
-              { className: 'mw-setting-table-note' },
-              h('span', {}, t('settings.aiModelFailed')),
-              h('button', { type: 'button', className: 'mw-link-btn mw-more', onClick: props.onReloadAiModels }, t('settings.aiModelRetry')),
-            )
-          }
-          if (models.length === 0) {
-            return h('p', { className: 'mw-setting-note' }, t('settings.aiModelEmpty'))
-          }
-          return h(
+          ),
+          h(
             'div',
-            { className: 'mw-setting-table', role: 'table', 'aria-label': t('settings.defaultModel') },
+            { className: 'mw-modal-body mw-settings-body' },
             h(
-              'div',
-              { className: 'mw-setting-table-head', role: 'row' },
-              h('span', { role: 'columnheader' }, t('settings.usage')),
-              h('span', { role: 'columnheader' }, t('settings.modelColumn')),
-            ),
-            h(
-              'div',
-              { className: 'mw-setting-table-row', role: 'row' },
-              h('span', { className: 'mw-setting-table-label', role: 'cell' }, t('settings.aiPickUsage')),
+              'section',
+              { className: 'mw-settings-section' },
+              h('h3', { className: 'mw-settings-section-title' }, t('settings.sources')),
+              h('p', { className: 'mw-settings-section-hint' }, t('settings.sourcesHint')),
               h(
                 'div',
-                { className: 'mw-setting-table-model', role: 'cell' },
-                h(ModelPicker, {
-                  t,
-                  catalog,
-                  phase: props.aiModelsPhase,
-                  value: props.aiModel,
-                  onChoose: props.onChooseAiModel,
-                  placement: 'down',
-                  layout: 'stacked',
-                  ariaLabel: t('settings.aiPickUsage'),
+                { className: 'mw-settings-list' },
+                PROVIDERS.map(provider => h(
+                  'div',
+                  { className: 'mw-setting-row', key: 'setting-' + provider },
+                  h(
+                    'span',
+                    { className: 'mw-setting-text' },
+                    h('span', { className: 'mw-setting-name' }, sourceLabel(t, provider)),
+                    h('span', { className: 'mw-setting-desc' }, t('recommend.' + provider)),
+                  ),
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      role: 'switch',
+                      className: 'mw-switch',
+                      'data-on': draftSources[provider] ? 'true' : 'false',
+                      'aria-checked': draftSources[provider] ? 'true' : 'false',
+                      'aria-label': t('settings.toggle', { source: sourceLabel(t, provider) }),
+                      onClick: () => toggle(provider),
+                    },
+                    h('span', { className: 'mw-switch-thumb' }),
+                  ),
+                )),
+              ),
+              notice ? h('p', { className: 'mw-settings-notice', role: 'status' }, notice) : null,
+            ),
+            h(
+              'section',
+              { className: 'mw-settings-section' },
+              h('h3', { className: 'mw-settings-section-title' }, t('settings.tmdbKey')),
+              h('p', { className: 'mw-settings-section-hint' }, t('key.hint')),
+              h(
+                'div',
+                { className: 'mw-settings-key-row' },
+                h('input', {
+                  className: 'mw-key-input',
+                  type: 'password',
+                  value: keyDraft,
+                  placeholder: t('key.placeholder'),
+                  spellCheck: false,
+                  autoComplete: 'off',
+                  'aria-label': t('settings.tmdbKey'),
+                  ref: keyInputRef,
+                  onChange: event => setKeyDraft(event.target.value),
+                  onKeyDown: event => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    save()
+                  },
                 }),
+                keyDraft.trim()
+                  ? h('button', { type: 'button', className: 'mw-settings-key-clear', onClick: () => setKeyDraft('') }, t('key.clear'))
+                  : null,
+              ),
+              props.serverConfigured ? h('p', { className: 'mw-settings-key-state' }, t('key.server')) : null,
+              props.storedKey && keyDraft.trim() ? h('p', { className: 'mw-settings-key-state' }, t('key.local')) : null,
+              h(
+                'p',
+                { className: 'mw-key-link' },
+                h('a', { href: TMDB_SETTINGS_URL, target: '_blank', rel: 'noreferrer noopener' }, t('key.open')),
               ),
             ),
-          )
-        })(),
+            h(
+              'section',
+              { className: 'mw-settings-section' },
+              h('h3', { className: 'mw-settings-section-title' }, t('settings.defaultModel')),
+              h(
+                'div',
+                { className: 'mw-setting-model-row' },
+                h('span', { className: 'mw-setting-model-label' }, t('settings.aiPickUsage')),
+                h('div', { className: 'mw-setting-model-control' }, modelControl),
+              ),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'mw-modal-actions' },
+            h('button', { type: 'button', className: 'mw-btn mw-btn-primary', onClick: save }, t('settings.save')),
+          ),
+        ),
       )
     }
 
@@ -3640,6 +3799,7 @@ window.__ModuleLoader__.load({
       const [source, setSource] = useState(session.source)
       const [sources, setSources] = useState(session.sources || { tmdb: true, imdb: true, douban: true })
       const [settingsOpen, setSettingsOpen] = useState(false)
+      const [settingsFocus, setSettingsFocus] = useState(null)
       const [aiModel, setAiModel] = useState(readAiModelPrefs)
       const [aiModels, setAiModels] = useState(null)
       const [aiModelsPhase, setAiModelsPhase] = useState('idle')
@@ -3661,15 +3821,9 @@ window.__ModuleLoader__.load({
       const [chartMoreFailure, setChartMoreFailure] = useState(null)
       const [recent, setRecent] = useState(readRecent)
       const [storedKey, setStoredKey] = useState(readTmdbKey)
-      const [keyOpen, setKeyOpen] = useState(false)
-      const [keyDraft, setKeyDraft] = useState(readTmdbKey)
       const [serverConfigured, setServerConfigured] = useState(false)
       const [hint, setHint] = useState(null)
       const inputRef = useRef(null)
-      const popoverRef = useRef(null)
-      const keyTriggerRef = useRef(null)
-      const settingsTriggerRef = useRef(null)
-      const settingsPanelRef = useRef(null)
       const aiModelsAbortRef = useRef(null)
       const abortRef = useRef(null)
       const suggestionsAbortRef = useRef(null)
@@ -3805,23 +3959,6 @@ window.__ModuleLoader__.load({
         }
       }, [])
 
-      useEffect(() => {
-        if (!keyOpen) return undefined
-        const onPointerDown = event => {
-          if (keyTriggerRef.current && keyTriggerRef.current.contains(event.target)) return
-          if (popoverRef.current && !popoverRef.current.contains(event.target)) setKeyOpen(false)
-        }
-        const onKeyDown = event => {
-          if (event.key === 'Escape') setKeyOpen(false)
-        }
-        document.addEventListener('pointerdown', onPointerDown)
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-          document.removeEventListener('pointerdown', onPointerDown)
-          document.removeEventListener('keydown', onKeyDown)
-        }
-      }, [keyOpen])
-
       // A restored view can point at a source the user has since disabled.
       useEffect(() => {
         if (selectedItem && !sources[selectedItem.source]) backToResults()
@@ -3830,22 +3967,15 @@ window.__ModuleLoader__.load({
         if (channel && !sources[channel.source]) closeChannel()
       }, [channel, sources])
 
-      useEffect(() => {
-        if (!settingsOpen) return undefined
-        const onPointerDown = event => {
-          if (settingsTriggerRef.current && settingsTriggerRef.current.contains(event.target)) return
-          if (settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) setSettingsOpen(false)
-        }
-        const onKeyDown = event => {
-          if (event.key === 'Escape') setSettingsOpen(false)
-        }
-        document.addEventListener('pointerdown', onPointerDown)
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-          document.removeEventListener('pointerdown', onPointerDown)
-          document.removeEventListener('keydown', onKeyDown)
-        }
-      }, [settingsOpen])
+      function openSettings(focus) {
+        setSettingsFocus(focus || null)
+        setSettingsOpen(true)
+      }
+
+      function closeSettings() {
+        setSettingsOpen(false)
+        setSettingsFocus(null)
+      }
 
       function loadAiModels() {
         if (aiModelsAbortRef.current) aiModelsAbortRef.current.abort()
@@ -3869,10 +3999,8 @@ window.__ModuleLoader__.load({
           writeStorage(AI_MODEL_STORAGE, null)
           return
         }
-        const separator = value.indexOf('|')
-        if (separator === -1) return
-        const next = { provider: value.slice(0, separator), model: value.slice(separator + 1) }
-        if (!next.provider || !next.model) return
+        const next = parseAiModelChoice(value)
+        if (!next) return
         setAiModel(next)
         writeStorage(AI_MODEL_STORAGE, next)
       }
@@ -4573,73 +4701,47 @@ window.__ModuleLoader__.load({
         void runSearch(value, sourceRef.current)
       }
 
-      function saveKey() {
-        const value = keyDraft.trim()
-        if (value === '') {
-          // Saving an empty field means "stop using a browser key"; the footer
-          // must not claim a key was saved.
-          clearKey()
-          return
-        }
-        writeStorage(KEY_STORAGE, value)
-        keyRef.current = value
-        setStoredKey(value)
-        setHint('key.saved')
-        setKeyOpen(false)
-        session.suggestions = null
-        setSuggestions(null)
-        session.channels = {}
-        if (channel) reloadChannel()
-        void loadSuggestions()
-        if (data && data.query) void runSearch(data.query, sourceRef.current)
-      }
-
-      function clearKey() {
-        writeStorage(KEY_STORAGE, '')
-        keyRef.current = ''
-        setStoredKey('')
-        setKeyDraft('')
-        setHint(null)
-        setKeyOpen(false)
-        session.suggestions = null
-        setSuggestions(null)
-        session.channels = {}
-        if (channel) reloadChannel()
-        void loadSuggestions()
-        if (data && data.query) void runSearch(data.query, sourceRef.current)
-      }
-
-      function clearRecent() {
-        writeStorage(RECENT_STORAGE, [])
-        setRecent([])
-      }
-
       /**
-       * Toggle one data source. The choice is persisted, every view filters on
-       * it, and open pages belonging to a disabled source are closed.
+       * Apply the settings dialog as one transaction. Values that did not
+       * change are left untouched, so opening the dialog and pressing Save
+       * never churns caches for nothing.
        */
-      function toggleSource(provider) {
-        const next = { ...sources, [provider]: !sources[provider] }
-        const remaining = PROVIDERS.filter(candidate => next[candidate])
-        if (remaining.length === 0) {
-          setHint('settings.lastSource')
-          return
+      function saveSettings(next) {
+        const changedSources = PROVIDERS.some(provider => Boolean(sources[provider]) !== Boolean(next.sources[provider]))
+        const changedKey = (storedKey || '') !== next.key
+        const changedModel = !sameAiModel(aiModel, next.model)
+        if (changedModel) {
+          setAiModel(next.model)
+          writeStorage(AI_MODEL_STORAGE, next.model)
         }
-        setSources(next)
-        session.sources = next
-        writeStorage(SOURCES_STORAGE, next)
-        if (!next[provider] && selectedItem && selectedItem.source === provider) backToResults()
-        if (!next[provider] && channel && channel.source === provider) closeChannel()
+        if (changedKey) {
+          writeStorage(KEY_STORAGE, next.key)
+          keyRef.current = next.key
+          setStoredKey(next.key)
+        }
+        const remaining = PROVIDERS.filter(provider => next.sources[provider])
         let nextSource = source
-        if (remaining.length === 1) nextSource = remaining[0]
-        else if (!next[provider] && source === provider) nextSource = 'all'
-        if (nextSource !== source) {
-          setSource(nextSource)
-          sourceRef.current = nextSource
-          session.source = nextSource
+        if (changedSources) {
+          setSources(next.sources)
+          session.sources = next.sources
+          writeStorage(SOURCES_STORAGE, next.sources)
+          // Open pages belonging to a disabled source cannot stay on screen.
+          if (selectedItem && !next.sources[selectedItem.source]) backToResults()
+          if (channel && !next.sources[channel.source]) closeChannel()
+          if (remaining.length === 1) nextSource = remaining[0]
+          else if (source !== 'all' && !next.sources[source]) nextSource = 'all'
+          if (nextSource !== source) {
+            setSource(nextSource)
+            sourceRef.current = nextSource
+            session.source = nextSource
+          }
         }
+        closeSettings()
+        if (changedKey && next.key !== '') setHint('key.saved')
+        else setHint('settings.saved')
+        if (!changedSources && !changedKey) return
         session.channels = {}
-        if (channel && next[channel.source] !== false) reloadChannel()
+        if (channel && next.sources[channel.source] !== false) reloadChannel()
         if (phase === 'idle') {
           session.suggestions = null
           setSuggestions(null)
@@ -4647,6 +4749,11 @@ window.__ModuleLoader__.load({
           return
         }
         void runSearch(draftRef.current, nextSource)
+      }
+
+      function clearRecent() {
+        writeStorage(RECENT_STORAGE, [])
+        setRecent([])
       }
 
       /**
@@ -4750,7 +4857,7 @@ window.__ModuleLoader__.load({
           className: 'mw-page',
           'data-view': collectionView ? 'collection' : seriesView ? 'series' : chartView ? 'chart' : selectedItem ? 'detail' : channel ? 'channel' : 'list',
           onKeyDown: event => {
-            if (event.key === 'Escape' && !keyOpen && !settingsOpen) {
+            if (event.key === 'Escape' && !settingsOpen) {
               if (collectionView) closeCollection()
               else if (seriesView) closeSeries()
               else if (chartView) closeChart()
@@ -4782,32 +4889,12 @@ window.__ModuleLoader__.load({
                 {
                   type: 'button',
                   className: 'mw-icon-btn',
-                  ref: keyTriggerRef,
-                  'data-active': keyOpen ? 'true' : 'false',
-                  'aria-controls': 'movies-workbench-key-panel',
-                  'aria-haspopup': 'dialog',
-                  onClick: () => {
-                    setKeyOpen(open => !open)
-                    setSettingsOpen(false)
-                  },
-                  title: t('key.button'),
-                  'aria-label': t('key.button'),
-                  'aria-expanded': keyOpen ? 'true' : 'false',
-                },
-                h(GlyphKey, null),
-              ),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'mw-icon-btn',
-                  ref: settingsTriggerRef,
                   'data-active': settingsOpen ? 'true' : 'false',
                   'aria-controls': 'movies-workbench-settings-panel',
                   'aria-haspopup': 'dialog',
                   onClick: () => {
-                    setSettingsOpen(open => !open)
-                    setKeyOpen(false)
+                    if (settingsOpen) closeSettings()
+                    else openSettings(null)
                   },
                   title: t('settings.button'),
                   'aria-label': t('settings.button'),
@@ -4817,30 +4904,18 @@ window.__ModuleLoader__.load({
               ),
             ),
           ),
-          keyOpen
-            ? h(KeyPopover, {
-              t: t,
-              panelRef: popoverRef,
-              draft: keyDraft,
-              stored: Boolean(storedKey),
-              serverConfigured: serverConfigured,
-              onDraft: value => {
-                setKeyDraft(value)
-              },
-              onSave: saveKey,
-              onClear: clearKey,
-            })
-            : null,
           settingsOpen
-            ? h(SettingsPopover, {
+            ? h(SettingsDialog, {
               t: t,
-              panelRef: settingsPanelRef,
               sources: sources,
-              onToggle: toggleSource,
+              storedKey: storedKey,
+              serverConfigured: serverConfigured,
               aiModel: aiModel,
               aiModels: aiModels,
               aiModelsPhase: aiModelsPhase,
-              onChooseAiModel: chooseAiModel,
+              focusKey: settingsFocus === 'key',
+              onClose: closeSettings,
+              onSave: saveSettings,
               onReloadAiModels: loadAiModels,
             })
             : null,
@@ -4919,27 +4994,14 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'mw-source-select' },
                 h('span', { className: 'mw-source-label' }, t('source')),
-                h(
-                  'div',
-                  { className: 'mw-select-wrap' },
-                  h(
-                    'select',
-                    {
-                      className: 'mw-select',
-                      value: activeSource,
-                      'aria-label': t('source'),
-                      onChange: event => chooseSource(event.target.value),
-                    },
-                    SOURCES.filter(candidate => (
-                      candidate === 'all' ? enabledProviders.length > 1 : Boolean(sources[candidate])
-                    )).map(candidate => h(
-                      'option',
-                      { key: candidate, value: candidate },
-                      sourceLabel(t, candidate),
-                    )),
-                  ),
-                  h('span', { className: 'mw-select-chevron', 'aria-hidden': 'true' }, h(GlyphChevronDown, { size: 14 })),
-                ),
+                h(SourcePicker, {
+                  t,
+                  value: activeSource,
+                  options: SOURCES.filter(candidate => (
+                    candidate === 'all' ? enabledProviders.length > 1 : Boolean(sources[candidate])
+                  )),
+                  onChoose: chooseSource,
+                }),
               )
               : null,
           ),
@@ -4981,7 +5043,7 @@ window.__ModuleLoader__.load({
                   failureText(t, entry.code),
                 ),
                 entry.code === 'tmdb_key_missing'
-                  ? h('button', { type: 'button', className: 'mw-link-btn', onClick: () => setKeyOpen(true) }, t('notice.setKey'))
+                  ? h('button', { type: 'button', className: 'mw-link-btn', onClick: () => openSettings('key') }, t('notice.setKey'))
                   : null,
               )),
             ),
@@ -5050,7 +5112,7 @@ window.__ModuleLoader__.load({
                 onRefresh: reloadChannel,
                 onLoadMore: loadMoreChannel,
                 onSelectCategory: category => switchChannel(channel.source, category),
-                onOpenKey: () => setKeyOpen(true),
+                onOpenKey: () => openSettings('key'),
                 onSelect: item => setSelectedItem(item),
               })
               : null,
@@ -5091,7 +5153,7 @@ window.__ModuleLoader__.load({
                       channelTriggerRef.current = trigger
                       openChannel(channelSource)
                     },
-                    onOpenKey: () => setKeyOpen(true),
+                    onOpenKey: () => openSettings('key'),
                   })
                   : groups.length === 0
                     ? (activeSource !== 'all' && errorBySource[activeSource]

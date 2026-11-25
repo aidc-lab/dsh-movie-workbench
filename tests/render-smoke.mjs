@@ -89,9 +89,14 @@ const React = {
 
 const SESSION_PATTERN = /    const session = \{[\s\S]*?\n    \}/
 
-function loadWorkbench(sessionLiteral, seedStorage) {
-  const patched = source.replace(SESSION_PATTERN, `    const session = ${sessionLiteral}`)
+function loadWorkbench(sessionLiteral, seedStorage, openSettings) {
+  let patched = source.replace(SESSION_PATTERN, `    const session = ${sessionLiteral}`)
   assert.notEqual(patched, source, 'session block was patched')
+  if (openSettings) {
+    const before = patched
+    patched = patched.replace('const [settingsOpen, setSettingsOpen] = useState(false)', 'const [settingsOpen, setSettingsOpen] = useState(true)')
+    assert.notEqual(patched, before, 'settingsOpen was patched')
+  }
   let definition = null
   const seeded = new Map(Object.entries(seedStorage || {}))
   const windowStub = {
@@ -170,8 +175,8 @@ function mockFetch() {
   return Promise.resolve({ ok: true, json: async () => ({ ok: true, sources: { tmdb: { configured: false } } }) })
 }
 
-function renderState(name, sessionLiteral, checks, seedStorage) {
-  const Page = loadWorkbench(sessionLiteral, seedStorage)
+function renderState(name, sessionLiteral, checks, seedStorage, openSettings) {
+  const Page = loadWorkbench(sessionLiteral, seedStorage, openSettings)
   const html = renderNode(createElement(Page, { t: BASE_T, getLocale: () => 'zh' }))
   assert.ok(html.length > 0, `${name}: rendered output is not empty`)
   for (const [needle, label] of checks) {
@@ -219,9 +224,12 @@ const idleHtml = renderState('idle (recommendations)', `{ source: 'all', draft: 
   ['mw-results::-webkit-scrollbar', 'hidden-scrollbar rule'],
   ['mw-link-btn mw-more', 'see-all control per channel'],
   ['查看全部', 'see-all label'],
-  ['数据源设置', 'data-source settings button'],
-  ['movies-workbench-settings-panel', 'settings popover anchor'],
+  ['aria-label="设置"', 'settings button'],
+  ['movies-workbench-settings-panel', 'settings dialog anchor'],
   ['class="mw-select"', 'source dropdown'],
+  ['aria-haspopup="listbox"', 'source dropdown semantics'],
+  ['class="mw-select-value">全部<', 'all-sources label'],
+  ['mw-select-chevron', 'source dropdown chevron'],
   ['value="all"', 'all-sources option'],
   ['value="imdb"', 'IMDb option'],
   ['value="douban"', 'douban option'],
@@ -229,6 +237,19 @@ const idleHtml = renderState('idle (recommendations)', `{ source: 'all', draft: 
 assert.ok(!idleHtml.includes('class="mw-rec-hint"'), 'idle: no per-channel hint when all channels have rows')
 assert.ok(!idleHtml.includes('为你推荐'), 'idle: recommendation heading row removed')
 assert.ok(!idleHtml.includes('试试这些'), 'idle: example shortcuts removed')
+
+const SETTINGS_SESSION = `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: null, channels: {} }`
+const settingsHtml = renderState('settings dialog', SETTINGS_SESSION, [
+  ['mw-modal-overlay', 'modal overlay'],
+  ['role="dialog"', 'dialog role'],
+  ['TMDB API Key', 'TMDB key field'],
+  ['数据源', 'data-source section'],
+  ['默认模型', 'default-model section'],
+  ['mw-switch', 'source switches'],
+  ['保存', 'save button'],
+], undefined, true)
+assert.ok(!settingsHtml.includes('mw-setting-table'), 'settings dialog: no table chrome')
+assert.ok(!settingsHtml.includes('mw-key-popover'), 'settings dialog: no popover chrome')
 assert.ok(!idleHtml.includes('class="mw-foot"'), 'idle: bottom status bar removed')
 assert.ok(!idleLoadingHtml.includes('试试这些'), 'idle loading: example shortcuts removed')
 assert.ok(!idleHtml.includes('class="mw-detail-page"'), 'idle: no detail page')
