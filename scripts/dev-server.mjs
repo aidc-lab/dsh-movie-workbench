@@ -678,6 +678,31 @@ async function main() {
       `${browseDoubanPopularItems.length} row(s), hasMore=${browseDoubanPopular.body?.hasMore}`,
     )
 
+    const browseDoubanFiltered = await getJson(`${api}/browse?source=douban&category=movie&page=1&sort=rating&decade=2020s&minRating=8&kind=movie`)
+    const browseDoubanFilteredItems = Array.isArray(browseDoubanFiltered.body?.items)
+      ? browseDoubanFiltered.body.items
+      : []
+    check(
+      'Douban browse filters apply decade, rating and kind, sorted by rating',
+      browseDoubanFiltered.response.status === 200 &&
+        browseDoubanFiltered.body?.ok === true &&
+        browseDoubanFilteredItems.length > 0 &&
+        browseDoubanFilteredItems.every((row) => row.kind === 'movie'
+          && Number.isInteger(row.year) && row.year >= 2020 && row.year <= 2029
+          && typeof row.rating === 'number' && row.rating >= 8) &&
+        browseDoubanFilteredItems.every((row, index) => index === 0
+          || browseDoubanFilteredItems[index - 1].rating >= row.rating) &&
+        browseDoubanFiltered.body?.errors?.length === 0,
+      `${browseDoubanFilteredItems.length} row(s), ratings=${browseDoubanFilteredItems.slice(0, 5).map((row) => row.rating).join(',')}`,
+    )
+
+    const browseDoubanBadFilter = await getJson(`${api}/browse?source=douban&category=movie&sort=nope`)
+    check(
+      'Douban browse with an unknown sort -> 400 bad_filter',
+      browseDoubanBadFilter.response.status === 400 && browseDoubanBadFilter.body?.code === 'bad_filter',
+      `HTTP ${browseDoubanBadFilter.response.status}, code=${browseDoubanBadFilter.body?.code}`,
+    )
+
     const browseImdbFeatured = await getJson(`${api}/browse?source=imdb&category=featured&page=1`)
     const browseImdbFeaturedItems = Array.isArray(browseImdbFeatured.body?.items)
       ? browseImdbFeatured.body.items

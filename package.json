@@ -1,6 +1,6 @@
 {
   "name": "dsh-movie-workbench",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "Movies workbench — search film and TV titles across TMDB, IMDb and DouBan from a left-sidebar panel.",
   "type": "module",
   "main": "index.js",

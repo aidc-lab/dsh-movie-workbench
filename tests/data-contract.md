@@ -416,6 +416,10 @@ tabs and infinite scroll.
 | `category` | no | must belong to that source's list (below); defaults to the first category |
 | `page` | no | integer `1`–`10`, defaults to `1` |
 | `lang` | no | `zh`/`en`; TMDB maps it to `language`, other providers ignore it |
+| `sort` | no | douban only: `default` (feed order), `rating`, `votes`, `year` |
+| `decade` | no | douban only: `all`, `2020s`, `2010s`, `2000s`, `1990s`, `older` |
+| `minRating` | no | douban only: integer `0`, `7`, `8`, `9` |
+| `kind` | no | douban only: `all`, `movie`, `tv` |
 
 Category lists:
 
@@ -453,7 +457,7 @@ DouBan and the last IMDb page), sent back as `&cursor=`; `errors` is empty on
 success, otherwise one
 `{source, code, message}` provider failure and `items: []`.
 
-Stable error codes: `bad_source`, `bad_category`, `bad_page`, `bad_cursor` (HTTP 400), plus the
+Stable error codes: `bad_source`, `bad_category`, `bad_page`, `bad_cursor`, `bad_filter` (HTTP 400), plus the
 provider codes surfaced through `errors` (`tmdb_key_missing`, `tmdb_unauthorized`,
 `upstream_error`, `timeout`, …).
 
@@ -475,6 +479,9 @@ provider codes surfaced through `errors` (`tmdb_key_missing`, `tmdb_unauthorized
   `popular` interleaves 10 hot movie rows and 10 hot TV rows per page
   (`page_start=(page-1)*10` each), so the page alternates movie/TV;
   `movie` / `tv` use `page_limit=20` and `page_start=(page-1)*20`.
+  A filtered or sorted view instead reads one 200-row recommendation pool per
+  category in the Host, filters/sorts it, and slices the requested page locally;
+  see v1.22.
 
 ## DouBan charts: `GET /movie-workbench/api/charts` + `GET /movie-workbench/api/chart` (v1.8)
 
@@ -1083,3 +1090,31 @@ browser now keeps both spellings visible and fills the page.
 - `hasMore` and page-based pagination are unchanged.
 - `tests/torrent-smoke.mjs` covers interleaving, localized weighting and
   quota fill.
+
+## v1.22 — Douban browse filters and sorting
+
+The three Douban browse tabs (`popular`, `movie`, `tv`) accept an optional
+sort/filter view. The two chart tabs are not affected.
+
+- `sort`: `default` (the upstream feed order), `rating`, `votes` or `year`;
+  unknown values are `400 bad_filter`.
+- `decade`: `all`, `2020s`, `2010s`, `2000s`, `1990s` or `older` (before 1990).
+- `minRating`: `0` (no minimum), `7`, `8` or `9`.
+- `kind`: `all`, `movie` or `tv`. The UI shows this choice only on `popular`,
+  but the API accepts it on all three browse categories.
+- The parameters are interpreted only when `source=douban`. Other sources
+  ignore them.
+- A default view keeps the efficient upstream paged path. Any non-default sort
+  or filter makes the Host read one large recommendation pool per category
+  (200 rows per feed; `popular` interleaves 200 movie + 200 TV rows; cached five
+  minutes, at most six categories), filter it, sort it, then slice the requested
+  page. This makes filters apply across pages instead of only to the rows that
+  happened to be on the current upstream page.
+- Sorting is descending by rating, votes or year; unknown values sort last,
+  with rating then votes as tie-breakers. `default` preserves the interleaved
+  movie/TV feed order.
+- The response envelope is unchanged. `hasMore` continues to mean "a later
+  page may contain rows"; filtered pages slice the same pool.
+- The client sends filters with `sort`, `decade`, `minRating` and `kind`; it
+  does not cache filtered pages, so changing a filter fetches a fresh view.
+- `tests/browse-smoke.mjs` covers filtering, sorting and parameter validation.

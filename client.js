@@ -54,6 +54,53 @@ window.__ModuleLoader__.load({
       return null
     }
 
+    /* Douban browse sort/filter view (contract v1.22). Filters are sent to the
+       Host only for the three Douban browse tabs; chart tabs keep their own UI. */
+    const DEFAULT_BROWSE_FILTERS = { sort: 'default', decade: 'all', minRating: 0, kind: 'all' }
+    const BROWSE_SORTS = ['default', 'rating', 'votes', 'year']
+    const BROWSE_DECADES = ['all', '2020s', '2010s', '2000s', '1990s', 'older']
+    const BROWSE_RATINGS = [0, 7, 8, 9]
+    const BROWSE_KINDS = ['all', 'movie', 'tv']
+
+    /** Fill missing/unknown filter fields with the unfiltered defaults. */
+    function normalizeBrowseFilters(value) {
+      const source = value || {}
+      return {
+        sort: BROWSE_SORTS.includes(source.sort) ? source.sort : DEFAULT_BROWSE_FILTERS.sort,
+        decade: BROWSE_DECADES.includes(source.decade) ? source.decade : DEFAULT_BROWSE_FILTERS.decade,
+        minRating: BROWSE_RATINGS.includes(Number(source.minRating))
+          ? Number(source.minRating)
+          : DEFAULT_BROWSE_FILTERS.minRating,
+        kind: BROWSE_KINDS.includes(source.kind) ? source.kind : DEFAULT_BROWSE_FILTERS.kind,
+      }
+    }
+
+    /** Whether a view needs the filtered/sorted Host path (and no page cache). */
+    function browseFiltersActive(value) {
+      const filters = normalizeBrowseFilters(value)
+      return filters.sort !== 'default'
+        || filters.decade !== 'all'
+        || filters.minRating > 0
+        || filters.kind !== 'all'
+    }
+
+    /** Compare two normalized filter views. */
+    function sameBrowseFilters(left, right) {
+      const a = normalizeBrowseFilters(left)
+      const b = normalizeBrowseFilters(right)
+      return a.sort === b.sort && a.decade === b.decade && a.minRating === b.minRating && a.kind === b.kind
+    }
+
+    /** Number of active filter choices, for the button badge. */
+    function browseFilterCount(value) {
+      const filters = normalizeBrowseFilters(value)
+      let count = 0
+      if (filters.decade !== 'all') count += 1
+      if (filters.minRating > 0) count += 1
+      if (filters.kind !== 'all') count += 1
+      return count
+    }
+
     const RECOMMENDATION_CARD_MIN_WIDTH = 148
     const RECOMMENDATION_CARD_GAP = 16
     const RECOMMENDATION_MAX_ITEMS = 30
@@ -128,6 +175,30 @@ window.__ModuleLoader__.load({
       'browse.popular': '热门推荐',
       'browse.movie': '电影',
       'browse.tv': '剧集',
+      'browse.sort': '排序',
+      'browse.filter': '筛选',
+      'browse.reset': '重置',
+      'browse.sort.default': '综合',
+      'browse.sort.rating': '评分',
+      'browse.sort.votes': '热度',
+      'browse.sort.year': '最新',
+      'browse.decade': '年代',
+      'browse.decade.all': '全部',
+      'browse.decade.2020s': '2020 年代',
+      'browse.decade.2010s': '2010 年代',
+      'browse.decade.2000s': '2000 年代',
+      'browse.decade.1990s': '1990 年代',
+      'browse.decade.older': '更早',
+      'browse.rating': '评分',
+      'browse.rating.all': '全部',
+      'browse.rating.7': '7 分以上',
+      'browse.rating.8': '8 分以上',
+      'browse.rating.9': '9 分以上',
+      'browse.kind': '类型',
+      'browse.kind.all': '全部',
+      'browse.kind.movie': '电影',
+      'browse.kind.tv': '剧集',
+      'browse.filters': '筛选条件',
       'browse.tabs': '浏览分类',
       'browse.loadMore': '加载更多',
       'browse.loadingMore': '正在加载…',
@@ -328,6 +399,30 @@ window.__ModuleLoader__.load({
       'browse.popular': 'Popular',
       'browse.movie': 'Movies',
       'browse.tv': 'TV',
+      'browse.sort': 'Sort',
+      'browse.filter': 'Filter',
+      'browse.reset': 'Reset',
+      'browse.sort.default': 'Featured',
+      'browse.sort.rating': 'Rating',
+      'browse.sort.votes': 'Popularity',
+      'browse.sort.year': 'Newest',
+      'browse.decade': 'Decade',
+      'browse.decade.all': 'All',
+      'browse.decade.2020s': '2020s',
+      'browse.decade.2010s': '2010s',
+      'browse.decade.2000s': '2000s',
+      'browse.decade.1990s': '1990s',
+      'browse.decade.older': 'Earlier',
+      'browse.rating': 'Rating',
+      'browse.rating.all': 'All',
+      'browse.rating.7': '7+',
+      'browse.rating.8': '8+',
+      'browse.rating.9': '9+',
+      'browse.kind': 'Type',
+      'browse.kind.all': 'All',
+      'browse.kind.movie': 'Movies',
+      'browse.kind.tv': 'TV',
+      'browse.filters': 'Filters',
       'browse.tabs': 'Browse categories',
       'browse.loadMore': 'Load more',
       'browse.loadingMore': 'Loading more…',
@@ -1064,6 +1159,20 @@ window.__ModuleLoader__.load({
       '.mw-tab[data-selected="true"]{color:var(--dsw-alias-label-primary);font-weight:500;}',
       '.mw-tab[data-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-0.5px;height:2px;border-radius:2px;background:var(--dsw-alias-brand-primary);}',
       '.mw-tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;}',
+      '.mw-browse-controls{margin:0 0 14px;}',
+      '.mw-browse-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}',
+      '.mw-browse-label{margin-right:2px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);}',
+      '.mw-browse-tools .mw-chip{height:28px;padding:0 11px;font-size:12px;}',
+      '.mw-browse-tools .mw-chip[data-selected="true"],.mw-filter-row .mw-chip[data-selected="true"]{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 42%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 11%,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-brand-primary);font-weight:500;}',
+      '.mw-browse-tools .mw-chip[aria-expanded="true"]{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent);color:var(--dsw-alias-label-primary);}',
+      '.mw-browse-divider{width:1px;height:16px;margin:0 4px;background:var(--dsw-alias-border-l1);}',
+      '.mw-filter-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-layer-1);font-size:10px;font-weight:600;line-height:16px;}',
+      '.mw-browse-reset{font-size:12px;line-height:18px;}',
+      '.mw-filter-panel{margin-top:10px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);display:flex;flex-direction:column;gap:8px;}',
+      '.mw-filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}',
+      '.mw-filter-title{flex:none;width:46px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);}',
+      '.mw-filter-row .mw-chip{height:26px;padding:0 10px;font-size:12px;}',
+      '@media (max-width:520px){.mw-filter-title{width:100%;}}',
       '.mw-more-row{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 8px;}',
       '.mw-more-sentinel{display:flex;justify-content:center;}',
       '.mw-related{display:flex;flex-direction:column;gap:8px;}',
@@ -1500,6 +1609,102 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** Sort chips and inline filters for the three Douban browse tabs. */
+    function BrowseFilters(props) {
+      const t = props.t
+      const filters = normalizeBrowseFilters(props.filters)
+      const [open, setOpen] = useState(false)
+      const count = browseFilterCount(filters)
+
+      useEffect(() => {
+        setOpen(false)
+      }, [props.category])
+
+      const setFilters = patch => props.onChange({ ...filters, ...patch })
+      const choice = (label, selected, onClick) => h(
+        'button',
+        {
+          type: 'button',
+          className: 'mw-chip',
+          'data-selected': selected ? 'true' : 'false',
+          'aria-pressed': selected ? 'true' : 'false',
+          onClick: onClick,
+        },
+        label,
+      )
+      const group = (title, options) => h(
+        'div',
+        { className: 'mw-filter-row' },
+        h('span', { className: 'mw-filter-title' }, title),
+        options,
+      )
+
+      return h(
+        'div',
+        { className: 'mw-browse-controls' },
+        h(
+          'div',
+          { className: 'mw-browse-tools', role: 'group', 'aria-label': t('browse.filters') },
+          h('span', { className: 'mw-browse-label' }, t('browse.sort')),
+          BROWSE_SORTS.map(sort => choice(
+            t('browse.sort.' + sort),
+            filters.sort === sort,
+            () => setFilters({ sort: sort }),
+          )),
+          h('span', { className: 'mw-browse-divider', 'aria-hidden': 'true' }),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'mw-chip',
+              'data-selected': count > 0 ? 'true' : 'false',
+              'aria-expanded': open ? 'true' : 'false',
+              onClick: () => setOpen(value => !value),
+            },
+            t('browse.filter'),
+            count > 0 ? h('span', { className: 'mw-filter-count' }, count) : null,
+          ),
+          count > 0
+            ? h(
+              'button',
+              {
+                type: 'button',
+                className: 'mw-link-btn mw-browse-reset',
+                onClick: () => {
+                  setOpen(false)
+                  props.onChange({ ...DEFAULT_BROWSE_FILTERS })
+                },
+              },
+              t('browse.reset'),
+            )
+            : null,
+        ),
+        open
+          ? h(
+            'div',
+            { className: 'mw-filter-panel', role: 'group', 'aria-label': t('browse.filters') },
+            group(t('browse.decade'), BROWSE_DECADES.map(decade => choice(
+              t('browse.decade.' + decade),
+              filters.decade === decade,
+              () => setFilters({ decade: decade }),
+            ))),
+            group(t('browse.rating'), BROWSE_RATINGS.map(rating => choice(
+              t('browse.rating.' + (rating === 0 ? 'all' : rating)),
+              filters.minRating === rating,
+              () => setFilters({ minRating: rating }),
+            ))),
+            props.category === 'popular'
+              ? group(t('browse.kind'), BROWSE_KINDS.map(kind => choice(
+                t('browse.kind.' + kind),
+                filters.kind === kind,
+                () => setFilters({ kind: kind }),
+              )))
+              : null,
+          )
+          : null,
+      )
+    }
+
     /** One channel's longer list: category tabs, paged grid and infinite scroll. */
     function ChannelPage(props) {
       const t = props.t
@@ -1516,6 +1721,8 @@ window.__ModuleLoader__.load({
       const hasMore = Boolean(state.hasMore)
       const listsKind = listsKindFor(activeCategory)
       const listsActive = Boolean(listsKind)
+      const filters = normalizeBrowseFilters(state.filters)
+      const filterable = source === 'douban' && !listsActive
       const backRef = useRef(null)
       const sentinelRef = useRef(null)
 
@@ -1650,6 +1857,14 @@ window.__ModuleLoader__.load({
               t('browse.' + category),
             )),
           )
+          : null,
+        filterable
+          ? h(BrowseFilters, {
+            t: t,
+            filters: filters,
+            category: activeCategory,
+            onChange: props.onChangeFilters,
+          })
           : null,
         body,
       )
@@ -4152,6 +4367,7 @@ window.__ModuleLoader__.load({
             page: cached.page || 1,
             hasMore: Boolean(cached.hasMore),
             cursor: cached.cursor || null,
+            filters: { ...DEFAULT_BROWSE_FILTERS },
           }
           setChannel(view)
           session.channel = view
@@ -4161,10 +4377,17 @@ window.__ModuleLoader__.load({
       }
 
       /** Load one page of a channel category; pages above 1 append to the grid. */
-      async function loadChannel(channelSource, category, page) {
+      async function loadChannel(channelSource, category, page, filterView) {
         const categories = channelCategoryTabs(channelSource)
         const activeCategory = category || categories[0]
         const append = page > 1
+        const filters = normalizeBrowseFilters(
+          filterView || (append && channelRef.current ? channelRef.current.filters : DEFAULT_BROWSE_FILTERS),
+        )
+        const filtered = channelSource === 'douban'
+          && !listsKindFor(activeCategory)
+          && browseFiltersActive(filters)
+        const cacheable = !filtered
         if (append) {
           if (moreRef.current) return
           moreRef.current = true
@@ -4185,6 +4408,7 @@ window.__ModuleLoader__.load({
             page: 0,
             hasMore: false,
             cursor: null,
+            filters: filters,
           }
           setChannel(loading)
           session.channel = loading
@@ -4193,6 +4417,12 @@ window.__ModuleLoader__.load({
         params.set('source', channelSource)
         params.set('category', activeCategory)
         params.set('page', String(page))
+        if (filtered) {
+          if (filters.sort !== 'default') params.set('sort', filters.sort)
+          if (filters.decade !== 'all') params.set('decade', filters.decade)
+          if (filters.minRating > 0) params.set('minRating', String(filters.minRating))
+          if (filters.kind !== 'all') params.set('kind', filters.kind)
+        }
         const cursor = append && channelRef.current ? String(channelRef.current.cursor || '') : ''
         if (cursor) params.set('cursor', cursor)
         params.set('lang', languageForSearch(getLocale()))
@@ -4214,6 +4444,7 @@ window.__ModuleLoader__.load({
           if (append) {
             const current = channelRef.current
             if (!current || current.source !== channelSource || current.category !== activeCategory) return
+            if (!sameBrowseFilters(current.filters, filters)) return
             const seen = new Set(
               (current.items || []).map(entry => String(entry.source) + '|' + String(entry.id)),
             )
@@ -4229,17 +4460,20 @@ window.__ModuleLoader__.load({
               hasMore: hasMore,
               cursor: next,
               categories: categories,
+              filters: filters,
             }
-            session.channels = {
-              ...(session.channels || {}),
-              [key]: {
-                status: 'done',
-                items: view.items,
-                failure: view.failure,
-                page: view.page,
-                hasMore: view.hasMore,
-                cursor: view.cursor,
-              },
+            if (cacheable) {
+              session.channels = {
+                ...(session.channels || {}),
+                [key]: {
+                  status: 'done',
+                  items: view.items,
+                  failure: view.failure,
+                  page: view.page,
+                  hasMore: view.hasMore,
+                  cursor: view.cursor,
+                },
+              }
             }
             setChannel(view)
             session.channel = view
@@ -4254,17 +4488,20 @@ window.__ModuleLoader__.load({
               page: returnedPage,
               hasMore: hasMore,
               cursor: next,
+              filters: filters,
             }
-            session.channels = {
-              ...(session.channels || {}),
-              [key]: {
-                status: 'done',
-                items: items,
-                failure: failure,
-                page: returnedPage,
-                hasMore: hasMore,
-                cursor: next,
-              },
+            if (cacheable) {
+              session.channels = {
+                ...(session.channels || {}),
+                [key]: {
+                  status: 'done',
+                  items: items,
+                  failure: failure,
+                  page: returnedPage,
+                  hasMore: hasMore,
+                  cursor: next,
+                },
+              }
             }
             setChannel(view)
             session.channel = view
@@ -4285,6 +4522,7 @@ window.__ModuleLoader__.load({
               page: 0,
               hasMore: false,
               cursor: null,
+              filters: filters,
             }
             setChannel(failed)
             session.channel = failed
@@ -4644,16 +4882,27 @@ window.__ModuleLoader__.load({
           void loadCharts(listsKind, true)
           return
         }
-        const key = channelCacheKey(channel.source, channel.category)
-        if (session.channels) delete session.channels[key]
+        const filters = normalizeBrowseFilters(channel.filters)
+        if (!browseFiltersActive(filters)) {
+          const key = channelCacheKey(channel.source, channel.category)
+          if (session.channels) delete session.channels[key]
+        }
         setMoreFailure(null)
-        void loadChannel(channel.source, channel.category, 1)
+        void loadChannel(channel.source, channel.category, 1, filters)
+      }
+
+      /** Apply a Douban sort/filter change to the open browse tab. */
+      function changeChannelFilters(next) {
+        if (!channel || listsKindFor(channel.category)) return
+        const filters = normalizeBrowseFilters(next)
+        if (sameBrowseFilters(channel.filters, filters)) return
+        void loadChannel(channel.source, channel.category, 1, filters)
       }
 
       /** Append the next page of the open channel. */
       function loadMoreChannel() {
         if (!channel || listsKindFor(channel.category) || !channel.hasMore || moreRef.current) return
-        void loadChannel(channel.source, channel.category, (channel.page || 1) + 1)
+        void loadChannel(channel.source, channel.category, (channel.page || 1) + 1, channel.filters)
       }
 
       function closeChannel() {
@@ -5118,6 +5367,7 @@ window.__ModuleLoader__.load({
                 onRefresh: reloadChannel,
                 onLoadMore: loadMoreChannel,
                 onSelectCategory: category => switchChannel(channel.source, category),
+                onChangeFilters: changeChannelFilters,
                 onOpenKey: () => openSettings('key'),
                 onSelect: item => setSelectedItem(item),
               })

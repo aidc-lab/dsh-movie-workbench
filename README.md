@@ -10,7 +10,7 @@ DSH **Movies workbench** : Search for movies and TV series from **TMDB**, **IMDb
 ## Features
 
 - **Multi-source search** — search TMDB, IMDb and Douban together, grouped by source.
-- **Trending and channel browse** — home rows plus per-source pages with category tabs and infinite scroll.
+- **Trending and channel browse** — home rows plus per-source pages with category tabs, infinite scroll and Douban sort/filter controls.
 - **Douban charts** — official, annual and genre charts for movies and TV, plus movie hidden-gem charts.
 - **Detail pages** — synopsis, metadata, related titles and chart placements.
 - **BT resources** — search, sort, copy magnet links and open source pages.

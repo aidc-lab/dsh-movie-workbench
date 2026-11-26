@@ -348,6 +348,10 @@ const channelHtml = renderState('channel', `{ source: 'all', draft: '', data: nu
   ['mw-card-title', 'channel cards'],
   ['加载更多', 'load-more control'],
   ['刷新', 'channel refresh control'],
+  ['class="mw-browse-controls"', 'Douban browse filter controls'],
+  ['class="mw-browse-tools"', 'sort/filter toolbar'],
+  ['综合', 'default sort chip'],
+  ['筛选', 'filter toggle'],
 ])
 assert.ok(!channelHtml.includes('mw-detail-page') === false, 'channel page uses the page container')
 assert.ok(channelHtml.includes('class="mw-back"'), 'channel page has a back control')
@@ -360,6 +364,18 @@ const channelEndHtml = renderState('channel (end)', `{ source: 'all', draft: '',
 ])
 assert.ok(!channelEndHtml.includes('加载更多'), 'channel end: no load-more button')
 assert.ok(!channelEndHtml.includes('class="mw-more-sentinel"'), 'channel end: no load-more sentinel')
+
+const CHANNEL_FILTERED = {
+  ...CHANNEL,
+  filters: { sort: 'rating', decade: '2020s', minRating: 8, kind: 'movie' },
+}
+const channelFilteredHtml = renderState('channel (filtered)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(CHANNEL_FILTERED)}, channels: {} }`, [
+  ['class="mw-browse-controls"', 'filter controls remain visible'],
+  ['class="mw-filter-count"', 'active filter badge'],
+  ['mw-link-btn mw-browse-reset', 'reset control for active filters'],
+  ['评分', 'rating sort selected'],
+])
+assert.ok(channelFilteredHtml.includes('aria-pressed="true"'), 'filtered view marks the selected sort')
 
 const LISTS = {
   status: 'done',
@@ -518,6 +534,8 @@ const TV_LISTS_CHANNEL = {
   page: 1,
   hasMore: false,
 }
+assert.ok(!listsChannelHtml.includes('class="mw-browse-controls"'), 'chart lists tab has no browse filters')
+
 const tvListsChannelHtml = renderState('channel (tv lists)', `{ source: 'all', draft: '', data: null, phase: 'idle', failure: null, selectedItem: null, suggestions: ${JSON.stringify(SUGGESTIONS)}, channel: ${JSON.stringify(TV_LISTS_CHANNEL)}, lists: ${JSON.stringify({ movie: LISTS, tv: TV_LISTS })}, channels: {} }`, [
   ['data-view="channel"', 'TV lists tab uses the channel view'],
   ['豆瓣 · 剧集榜单', 'TV lists tab heading'],
@@ -840,6 +858,7 @@ console.log('  idle partial :', partialHtml.length, 'chars')
 console.log('  idle failed  :', failedHtml.length, 'chars')
 console.log('  channel      :', channelHtml.length, 'chars')
 console.log('  channel lists:', listsChannelHtml.length, 'chars')
+console.log('  channel filtered:', channelFilteredHtml.length, 'chars')
 console.log('  channel tv lists:', tvListsChannelHtml.length, 'chars')
 console.log('  chart        :', chartHtml.length, 'chars')
 console.log('  results      :', resultsHtml.length, 'chars')
